@@ -56,6 +56,41 @@ export default class BoardController {
     }
 
     update(time, delta) {
-        // Will handle progress updates here later
+        this.tickets.forEach(ticket => {
+            if (ticket.stackedDevs.length > 0 && ticket.progress < ticket.maxProgress) {
+                // Fill progress
+                ticket.progress += (delta / 1000) * 10; // 10 units per second per dev
+                ticket.updateProgressVisual();
+                
+                if (ticket.progress >= ticket.maxProgress) {
+                    this.slideTicket(ticket);
+                }
+            }
+        });
+    }
+
+    slideTicket(ticket) {
+        // Detach devs
+        ticket.stackedDevs.forEach(dev => {
+            dev.currentTicket = null;
+            dev.y += 100; // visually separate
+        });
+        ticket.stackedDevs = [];
+        
+        // Move to next column
+        const currentIndex = this.columns.indexOf(ticket.currentColumn);
+        if (currentIndex < this.columns.length - 1) {
+            ticket.currentColumn = this.columns[currentIndex + 1];
+            ticket.progress = 0;
+            ticket.updateProgressVisual();
+            
+            // Animate slide
+            this.scene.tweens.add({
+                targets: ticket,
+                x: (currentIndex + 1) * 200 + 100,
+                duration: 500,
+                ease: 'Power2'
+            });
+        }
     }
 }
