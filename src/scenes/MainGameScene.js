@@ -10,16 +10,21 @@ export default class MainGameScene extends Phaser.Scene {
     create() {
         this.boardController = new BoardController(this);
         this.boardController.createColumns();
+        this.boardController.setupInteractions();
 
-        this.input.on('dragend', (pointer, gameObject) => {
-            this.boardController.handleDrop(gameObject);
-        });
+        // Create a test TicketCard in Backlog requiring a Frontend dev
+        const ticket = new TicketCard(this, 100, 300, "Fix Bug #123", "Frontend");
+        this.add.existing(ticket);
+        this.boardController.tickets.push(ticket);
 
-        // Replace dummy cards with real ones, add to controller arrays
-        const t1 = new TicketCard(this, 100, 150, "Fix Bug");
-        const d1 = new DevCard(this, 100, 400, "Alice");
-        this.boardController.tickets.push(t1);
-        this.boardController.devs.push(d1);
+        // Create test DevCards with different roles
+        const dev1 = new DevCard(this, 300, 500, "Alice", "Frontend");
+        this.add.existing(dev1);
+        this.boardController.devs.push(dev1);
+        
+        const dev2 = new DevCard(this, 500, 500, "Bob", "Backend");
+        this.add.existing(dev2);
+        this.boardController.devs.push(dev2);
     }
     update(time, delta) {
         this.boardController.update(time, delta);
