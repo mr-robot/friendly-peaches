@@ -2,12 +2,16 @@ import Phaser from 'phaser';
 import BoardController from '../controllers/BoardController.js';
 import DevCard from '../entities/DevCard.js';
 import TicketCard from '../entities/TicketCard.js';
+import GameManager from '../core/GameManager.js';
 
 export default class MainGameScene extends Phaser.Scene {
     constructor() {
         super('MainGameScene');
+        this.gameManager = new GameManager();
     }
     create() {
+        this.scene.launch('UIScene');
+        
         this.boardController = new BoardController(this);
         this.boardController.createColumns();
         this.boardController.setupInteractions();
@@ -27,6 +31,42 @@ export default class MainGameScene extends Phaser.Scene {
         this.boardController.devs.push(dev2);
     }
     update(time, delta) {
-        this.boardController.update(time, delta);
+        // Calculate total active devs across all tickets for budget drain
+        let activeDevs = 0;
+        this.boardController.tickets.forEach(t => {
+            if (t.currentColumn !== 'Done') {
+                activeDevs += t.stackedDevs.length;
+            }
+        });
+
+        this.gameManager.tick(delta, { activeDevs });
+
+        // Only allow work if sprint is active
+        if (this.gameManager.state === 'ACTIVE') {
+            this.boardController.update(time, delta);
+        } else {
+            // Stop particles/breathing if not active
+            this.boardController.tickets.forEach(t => {
+                if (typeof t.stopParticles === 'function') t.stopParticles();
+                t.stackedDevs.forEach(d => {
+                    if (typeof d.stopBreathing === 'function') d.stopBreathing();
+                });
+            });
+        }
+
+        // Check if ticket just completed (slider logic is in boardController, but we need to hook into it)
+        // For MVP, we can check if it's in Done and hasn't been rewarded yet
+        this.boardController.tickets.forEach(t => {
+            if (t.currentColumn === 'Done' && !t.rewarded) {
+                t.rewarded = true;
+                this.gameManager.completeTicket();
+            }
+        });
+
+        // Update UI
+        const uiScene = this.scene.get('UIScene');
+        if (uiScene && uiScene.updateUI) {
+            uiScene.updateUI(this.gameManager);
+        }
     }
 }
