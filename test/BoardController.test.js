@@ -519,8 +519,37 @@ describe('BoardController', () => {
         expect(mockDev1.x).toBe(300);
         expect(mockDev1.y).toBe(340); // base offset
 
-        // Drop second dev
         dropCb(null, mockDev2, {});
+        expect(mockDev2.x).toBe(300);
+        expect(mockDev2.y).toBe(370); // base + 30 cascading offset
+        expect(mockTicket.stackedDevs.length).toBe(2);
+    });
+
+        // Drop second dev
+    it('should enforce a maximum of 2 DevCards per TicketCard', () => {
+        controller.setupInteractions();
+        const dropCall = mockScene.input.on.mock.calls.find(c => c[0] === 'drop');
+        const dropCb = dropCall[1];
+
+        const mockTicket = {
+            constructor: { name: 'TicketCard' },
+            x: 300, y: 300,
+            stackedDevs: [],
+            currentColumn: 'In Progress'
+        };
+        controller.tickets.push(mockTicket);
+
+        const mockDev1 = { constructor: { name: 'DevCard' }, x: 310, y: 320, currentTicket: null, startBreathing: vi.fn() };
+        const mockDev2 = { constructor: { name: 'DevCard' }, x: 310, y: 320, currentTicket: null, startBreathing: vi.fn() };
+        const mockDev3 = { constructor: { name: 'DevCard' }, x: 310, y: 320, currentTicket: null, startBreathing: vi.fn() };
+
+        // Drop first two devs
+        dropCb(null, mockDev1, {});
+        dropCb(null, mockDev2, {});
+        expect(mockTicket.stackedDevs.length).toBe(2);
+
+        // Drop third dev, should not be attached
+
         expect(mockDev2.x).toBe(300);
         expect(mockDev2.y).toBe(370); // base + 30 cascading offset
         expect(mockTicket.stackedDevs.length).toBe(2);
