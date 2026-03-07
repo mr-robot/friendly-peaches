@@ -451,11 +451,18 @@ export default class BoardController {
                 const devCount = ticket.stackedDevs.length;
                 const synergyMultiplier = devCount === 2 ? 1.5 : 1.0; // Pair programming bonus
                 
+                // Get global morale multiplier
+                let moraleMultiplier = 1.0;
+                if (this.scene && this.scene.gameManager && typeof this.scene.gameManager.getMoraleMultiplier === 'function') {
+                    moraleMultiplier = this.scene.gameManager.getMoraleMultiplier();
+                }
+
                 // Decay quality if mismatched devs are working
                 if (ticket.quality !== undefined) {
                     const hasMismatchedDev = ticket.stackedDevs.some(dev => dev.role !== ticket.requirement);
                     if (hasMismatchedDev) {
-                        ticket.quality = Math.max(0, ticket.quality - (5 * (delta / 1000))); // Decay 5 points per second
+                        const qualityDecayMultiplier = moraleMultiplier < 1.0 ? 2.0 : 1.0;
+                        ticket.quality = Math.max(0, ticket.quality - (5 * qualityDecayMultiplier * (delta / 1000))); // Decay 5 points per second
                         if (typeof ticket.updateQualityVisual === 'function') {
                             ticket.updateQualityVisual();
                         }
@@ -468,7 +475,16 @@ export default class BoardController {
                 ticket.stackedDevs.forEach(dev => {
                     const isMatch = ticket.requirement && dev.role === ticket.requirement;
                     const roleMultiplier = isMatch ? 2.0 : 1.0;
-                    totalRate += 10 * roleMultiplier * synergyMultiplier; // 10 base units per sec
+                    const exhaustionMultiplier = (typeof dev.isExhausted === 'function' && dev.isExhausted()) ? 0.5 : 1.0;
+                    
+                    totalRate += 10 * roleMultiplier * synergyMultiplier * exhaustionMultiplier * moraleMultiplier; // 10 base units per sec
+
+                    // Accumulate burnout for working dev
+                    if (typeof dev.setBurnout === 'function' && dev.burnout !== undefined) {
+                        const baseBurnoutRate = 2.0; // 2 burnout units per second
+                        const pairRelief = devCount === 2 ? 0.7 : 1.0; // 30% reduction for pairing
+                        dev.setBurnout(dev.burnout + (baseBurnoutRate * pairRelief * (delta / 1000)));
+                    }
                 });
                 
                 
