@@ -5,10 +5,14 @@ import UIScene from './scenes/UIScene.js';
 
 const config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: window.innerWidth,
+    height: window.innerHeight,
     parent: 'game-container',
-    scene: [BootScene, MainGameScene, UIScene]
+    scene: [BootScene, MainGameScene, UIScene],
+    scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    }
 };
 
 const game = new Phaser.Game(config);

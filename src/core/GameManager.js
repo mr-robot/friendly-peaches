@@ -6,12 +6,39 @@ export default class GameManager {
         this.state = 'PLANNING';
         this.devCostPerSecond = 10;
         this.ticketReward = 2000;
+        this.baseOperatingCost = 5000; // Base cost per sprint
     }
 
     startSprint() {
         if (this.state === 'PLANNING') {
             this.state = 'ACTIVE';
         }
+    }
+
+    startNextSprint() {
+        if (this.state === 'REVIEW') {
+            this.state = 'PLANNING';
+            this.sprintTime = 60;
+        }
+    }
+
+    evaluateSprint(completedTickets, committedTickets) {
+        if (this.state !== 'REVIEW') {
+            return null;
+        }
+
+        const budgetEarned = completedTickets * this.ticketReward;
+        const netBudget = budgetEarned - this.baseOperatingCost;
+        
+        this.budget += netBudget;
+
+        return {
+            completed: completedTickets,
+            committed: committedTickets,
+            budgetEarned: budgetEarned,
+            operatingCost: this.baseOperatingCost,
+            netBudget: netBudget
+        };
     }
 
     tick(deltaMs, stats = { activeDevs: 0 }) {

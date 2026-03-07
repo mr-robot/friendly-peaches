@@ -29,7 +29,9 @@ describe('TicketCard', () => {
                     fillRect: vi.fn()
                 }),
                 text: vi.fn().mockReturnValue({
-                    setOrigin: vi.fn().mockReturnThis()
+                    setOrigin: vi.fn().mockReturnThis(),
+                    setText: vi.fn().mockReturnThis(),
+                    setColor: vi.fn().mockReturnThis()
                 })
             },
             time: {

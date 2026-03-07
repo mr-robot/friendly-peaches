@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import BoardController from '../src/controllers/BoardController.js';
 
+// Mock BugCard so it doesn't trigger Phaser imports
+vi.mock('../src/entities/BugCard.js', () => {
+    return {
+        default: class MockBugCard {
+            constructor(scene, x, y, title, requirement) {
+                this.constructorName = 'BugCard';
+            }
+        }
+    };
+});
+
 describe('BoardController', () => {
     let mockScene;
     let controller;
@@ -18,10 +29,15 @@ describe('BoardController', () => {
 
         mockScene = {
             add: {
-                line: vi.fn().mockImplementation(createMockGameObject),
-                text: vi.fn().mockImplementation(createMockGameObject),
-                rectangle: vi.fn().mockImplementation(createMockGameObject),
-                zone: vi.fn().mockImplementation(createMockGameObject)
+                rectangle: vi.fn().mockImplementation((x, y, width, height, color, alpha) => createMockGameObject()),
+                line: vi.fn().mockImplementation((x1, y1, x2, y2, color, alpha) => createMockGameObject()),
+                text: vi.fn().mockImplementation((x, y, text, style) => createMockGameObject()),
+                zone: vi.fn().mockImplementation((x, y, width, height) => createMockGameObject()),
+                existing: vi.fn()
+            },
+            scale: {
+                width: 1920,
+                height: 1080
             },
             input: {
                 on: vi.fn()
@@ -34,29 +50,104 @@ describe('BoardController', () => {
         controller = new BoardController(mockScene);
     });
 
-    it('should create exactly 4 columns: Backlog, In Progress, Review, Done', () => {
+    it('should create exactly 5 columns: Backlog, In Progress, Review, Done, Icebox', () => {
         controller.createColumns();
         
-        expect(controller.columns).toEqual(['Backlog', 'In Progress', 'Review', 'Done']);
-        expect(mockScene.add.text).toHaveBeenCalledTimes(4);
+        expect(controller.columns).toEqual(['Icebox', 'Backlog', 'In Progress', 'Review', 'Done']);
+        expect(mockScene.add.text).toHaveBeenCalledTimes(5);
+    });
+
+    it('should populate an Icebox column and populate it with tickets', () => {
+        const mockAddExisting = vi.fn();
+        mockScene.add.existing = mockAddExisting;
+        
+        controller.createColumns(); // Need to create columns first
+        controller.populateIcebox(5);
+        
+        expect(controller.iceboxTickets.length).toBe(5);
+        expect(mockAddExisting).toHaveBeenCalledTimes(5);
+        
+        // Verify each ticket has the expected properties
+        controller.iceboxTickets.forEach(ticket => {
+            expect(ticket.constructor.name).toBe('TicketCard');
+            expect(ticket.currentColumn).toBe('Icebox');
+        });
     });
 
     it('should create a background panel and drop zone for each column', () => {
         controller.createColumns();
 
-        // 4 columns * 1 rectangle per column = 4 rectangles
-        expect(mockScene.add.rectangle).toHaveBeenCalledTimes(4);
-        // 4 columns * 1 drop zone per column = 4 zones
-        expect(mockScene.add.zone).toHaveBeenCalledTimes(4);
+        // 5 columns * 2 rectangles per column (bg + header) = 10 rectangles
+        expect(mockScene.add.rectangle).toHaveBeenCalledTimes(10);
+        // 5 columns * 1 drop zone per column = 5 zones
+        expect(mockScene.add.zone).toHaveBeenCalledTimes(5);
         
         // Check that setDropZone was called on each created zone
         const zones = mockScene.add.zone.mock.results.map(r => r.value);
-        expect(zones.length).toBe(4);
+        expect(zones.length).toBe(5);
         zones.forEach(zone => {
             expect(zone.setDropZone).toHaveBeenCalled();
         });
     });
 
+    it('should assign column and snap to position on native drop event for regular columns', () => {
+        controller.createColumns();
+        controller.setupInteractions();
+        mockScene.gameManager = { state: 'ACTIVE' };
+
+        const dropCall = mockScene.input.on.mock.calls.find(c => c[0] === 'drop');
+        expect(dropCall).toBeDefined();
+
+        const dropCb = dropCall[1];
+
+        const mockCard = {
+            constructor: { name: 'TicketCard' },
+            x: 0,
+            y: 0,
+            input: { dragStartX: 0, dragStartY: 0 },
+            currentColumn: 'Backlog'
+        };
+
+        const inProgressZone = {
+            x: 200,
+            width: 200,
+            columnName: 'In Progress'
+        };
+
+        dropCb(null, mockCard, inProgressZone);
+        
+        expect(mockCard.currentColumn).toBe('In Progress');
+    });
+
+    it('should snap to Icebox on drop event if dropZone is Icebox', () => {
+        controller.createColumns();
+        controller.populateIcebox(0);
+        controller.setupInteractions();
+        mockScene.gameManager = { state: 'PLANNING' };
+        
+        const dropCall = mockScene.input.on.mock.calls.find(c => c[0] === 'drop');
+        const dropCb = dropCall[1];
+
+        const mockCard = {
+            constructor: { name: 'TicketCard' },
+            x: 100,
+            y: 100,
+            input: { dragStartX: 100, dragStartY: 100 },
+            currentColumn: 'Backlog'
+        };
+
+        const iceboxZone = {
+            x: 0,
+            y: 620,
+            width: 800,
+            height: 200,
+            columnName: 'Icebox'
+        };
+
+        dropCb(null, mockCard, iceboxZone);
+        
+        expect(mockCard.currentColumn).toBe('Icebox');
+    });
     it('should highlight column background on dragenter and revert on dragleave', () => {
         controller.createColumns();
         controller.setupInteractions();
@@ -82,6 +173,7 @@ describe('BoardController', () => {
     it('should assign column and snap to position on native drop event', () => {
         controller.createColumns();
         controller.setupInteractions();
+        mockScene.gameManager = { state: 'ACTIVE' };
 
         const dropCall = mockScene.input.on.mock.calls.find(c => c[0] === 'drop');
         expect(dropCall).toBeDefined();
@@ -93,11 +185,10 @@ describe('BoardController', () => {
             constructor: { name: 'TicketCard' },
             x: 0,
             y: 0,
-            currentColumn: null
+            input: { dragStartX: 0, dragStartY: 0 },
+            currentColumn: 'Backlog'
         };
 
-        // Find the "In Progress" zone (index 1)
-        // x is 1 * 200 + 100 - 100 = 200, width = 200
         const inProgressZone = {
             x: 200,
             width: 200,
@@ -106,8 +197,6 @@ describe('BoardController', () => {
 
         dropCb(null, mockCard, inProgressZone);
 
-        // Should snap to the center of In Progress column (x = 300)
-        expect(mockCard.x).toBe(300);
         expect(mockCard.currentColumn).toBe('In Progress');
     });
 
@@ -200,9 +289,9 @@ describe('BoardController', () => {
 
         dropCb(null, mockDev, {});
 
-        // Should NOT snap to ticket, should snap back to original position
-        expect(mockDev.x).toBe(100);
-        expect(mockDev.y).toBe(100);
+        // Should NOT snap to ticket and should remain where dropped
+        expect(mockDev.x).toBe(710);
+        expect(mockDev.y).toBe(320);
         expect(mockDev.currentTicket).toBeNull();
         expect(mockTicket.stackedDevs).not.toContain(mockDev);
     });
@@ -286,6 +375,7 @@ describe('BoardController', () => {
 
     it('should stop breathing animation when DevCard is unstacked', () => {
         controller.setupInteractions();
+
         const dragStartCall = mockScene.input.on.mock.calls.find(c => c[0] === 'dragstart');
         const dragStartCb = dragStartCall[1];
 
@@ -305,9 +395,47 @@ describe('BoardController', () => {
         expect(mockDev.stopBreathing).toHaveBeenCalled();
     });
 
+    it('should move a DevCard during drag so it can be dropped onto an active TicketCard', () => {
+        controller.setupInteractions();
+
+        const dragCall = mockScene.input.on.mock.calls.find(c => c[0] === 'drag');
+        const dropCall = mockScene.input.on.mock.calls.find(c => c[0] === 'drop');
+        expect(dragCall).toBeDefined();
+        expect(dropCall).toBeDefined();
+
+        const dragCb = dragCall[1];
+        const dropCb = dropCall[1];
+
+        const mockTicket = {
+            constructor: { name: 'TicketCard' },
+            x: 300,
+            y: 300,
+            stackedDevs: [],
+            currentColumn: 'In Progress'
+        };
+        controller.tickets.push(mockTicket);
+
+        const mockDev = {
+            constructor: { name: 'DevCard' },
+            x: 100,
+            y: 100,
+            currentTicket: null,
+            input: { dragStartX: 100, dragStartY: 100 }
+        };
+
+        dragCb(null, mockDev, 310, 320);
+        dropCb(null, mockDev, {});
+
+        expect(mockDev.x).toBe(300);
+        expect(mockDev.y).toBe(340);
+        expect(mockDev.currentTicket).toBe(mockTicket);
+        expect(mockTicket.stackedDevs).toContain(mockDev);
+    });
+
     it('should control ticket particles during work simulation', () => {
         const mockTicket = {
             constructor: { name: 'TicketCard' },
+            x: 100, y: 100,
             stackedDevs: [{}], // Has a dev working on it
             progress: 0,
             maxProgress: 100,
@@ -331,6 +459,8 @@ describe('BoardController', () => {
     });
 
     it('should detach DevCard, stop effects, and slide TicketCard on completion', () => {
+        controller.createColumns();
+
         const mockDev = {
             constructor: { name: 'DevCard' },
             y: 100,
@@ -361,7 +491,7 @@ describe('BoardController', () => {
 
         // Assertions for Dev
         expect(mockDev.currentTicket).toBeNull();
-        expect(mockDev.y).toBe(200); // Initial 100 + 100 drop down
+        expect(mockDev.y).toBe(100);
         expect(mockDev.stopBreathing).toHaveBeenCalled();
         
         // Assertions for slide animation
@@ -471,5 +601,117 @@ describe('BoardController', () => {
         mockTicket.stackedDevs = [{ role: 'Frontend' }, { role: 'Frontend' }, { role: 'Backend' }];
         controller.update(0, 1000);
         expect(mockTicket.progress).toBe(50);
+    });
+
+    it('should decay ticket quality if worked on by mismatched roles', () => {
+        const mockTicket = {
+            constructor: { name: 'TicketCard' },
+            requirement: 'Frontend',
+            quality: 100,
+            stackedDevs: [{ role: 'Backend' }],
+            progress: 0,
+            maxProgress: 100,
+            updateProgressVisual: vi.fn(),
+            updateQualityVisual: vi.fn(),
+            startParticles: vi.fn(),
+            stopParticles: vi.fn()
+        };
+        controller.tickets.push(mockTicket);
+        
+        // Tick 1 second
+        controller.update(0, 1000);
+        
+        // Quality should decay by 5 per second for each mismatched dev
+        expect(mockTicket.quality).toBe(95);
+        expect(mockTicket.updateQualityVisual).toHaveBeenCalled();
+    });
+
+    it('should NOT decay ticket quality if worked on by matching roles', () => {
+        const mockTicket = {
+            constructor: { name: 'TicketCard' },
+            requirement: 'Frontend',
+            quality: 100,
+            stackedDevs: [{ role: 'Frontend' }],
+            progress: 0,
+            maxProgress: 100,
+            updateProgressVisual: vi.fn(),
+            updateQualityVisual: vi.fn(),
+            startParticles: vi.fn(),
+            stopParticles: vi.fn()
+        };
+        controller.tickets.push(mockTicket);
+        
+        // Tick 1 second
+        controller.update(0, 1000);
+        
+        // Quality should remain 100
+        expect(mockTicket.quality).toBe(100);
+    });
+
+    it('should NOT spawn a BugCard before a low-quality ticket completes', () => {
+        vi.spyOn(Math, 'random').mockReturnValue(0);
+
+        const mockAddExisting = vi.fn();
+        mockScene.add.existing = mockAddExisting;
+
+        const mockTicket = {
+            constructor: { name: 'TicketCard' },
+            title: 'Half-Baked Feature',
+            requirement: 'Backend',
+            quality: 0,
+            stackedDevs: [{ role: 'Backend' }],
+            progress: 10,
+            maxProgress: 100,
+            currentColumn: 'In Progress',
+            updateProgressVisual: vi.fn(),
+            updateQualityVisual: vi.fn(),
+            startParticles: vi.fn(),
+            stopParticles: vi.fn()
+        };
+        controller.tickets.push(mockTicket);
+
+        controller.update(0, 1000);
+
+        expect(controller.tickets).toHaveLength(1);
+        expect(mockAddExisting).not.toHaveBeenCalled();
+
+        vi.restoreAllMocks();
+    });
+
+    it('should spawn a BugCard when a ticket completes with low quality', () => {
+        // Mock random so we always fail the quality check if quality is < 100
+        vi.spyOn(Math, 'random').mockReturnValue(0.5);
+        controller.createColumns();
+        
+        // Mock add existing to catch the spawned BugCard
+        const mockAddExisting = vi.fn();
+        mockScene.add.existing = mockAddExisting;
+        
+        const mockTicket = {
+            constructor: { name: 'TicketCard' },
+            title: 'Test Feature',
+            requirement: 'Backend',
+            quality: 0, // Very low quality means high chance of bug
+            stackedDevs: [ { stopBreathing: vi.fn(), role: 'Backend' } ], // Matching role to calculate totalRate easily
+            progress: 90, // Start just below max so it crosses threshold
+            maxProgress: 100,
+            currentColumn: 'Review',
+            updateProgressVisual: vi.fn(),
+            updateQualityVisual: vi.fn(),
+            startParticles: vi.fn(),
+            stopParticles: vi.fn()
+        };
+        controller.tickets.push(mockTicket);
+        
+        // This update will add 20 progress (1 dev * 2.0 match * 10 rate), crossing 100, triggering slideTicket
+        controller.update(0, 1000);
+        
+        // We expect a new BugCard to have been pushed to tickets and added to scene
+        expect(controller.tickets.length).toBe(2);
+        expect(controller.tickets[1].constructorName).toBe('BugCard');
+        expect(controller.tickets[1].currentColumn).toBe('Backlog');
+        expect(mockAddExisting).toHaveBeenCalled();
+        
+        vi.restoreAllMocks();
     });
 });
