@@ -52,6 +52,11 @@ describe('GameManager', () => {
         manager.completeTicket();
         expect(manager.budget).toBe(12000); // base + 2000
     });
+    it('should NOT increase budget when a BugCard is completed', () => {
+        const bugCard = { constructor: { name: 'BugCard' } };
+        manager.completeTicket(bugCard);
+        expect(manager.budget).toBe(10000); // no change
+    });
 
     it('should decrease budget based on active devs during tick', () => {
         manager.startSprint();

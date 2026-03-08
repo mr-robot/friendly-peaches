@@ -120,7 +120,7 @@ export default class MainGameScene extends Phaser.Scene {
         this.boardController.tickets.forEach(t => {
             if (t.currentColumn === 'Done' && !t.rewarded) {
                 t.rewarded = true;
-                this.gameManager.completeTicket();
+                this.gameManager.completeTicket(t);
             }
         });
 

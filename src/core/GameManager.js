@@ -58,8 +58,11 @@ export default class GameManager {
         this.budget -= cost;
     }
 
-    completeTicket() {
-        this.budget += this.ticketReward;
+    completeTicket(ticket) {
+        const isBug = ticket && ticket.constructor && ticket.constructor.name === 'BugCard';
+        if (!isBug) {
+            this.budget += this.ticketReward;
+        }
         this.morale = Math.min(100, this.morale + 5);
     }
 
