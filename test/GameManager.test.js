@@ -80,4 +80,34 @@ describe('GameManager', () => {
         
         expect(manager.budget).toBe(initialBudget + 100);
     });
+
+    it('should calculate morale multiplier correctly', () => {
+        manager.morale = 100;
+        expect(manager.getMoraleMultiplier()).toBe(1.0);
+        
+        manager.morale = 50;
+        expect(manager.getMoraleMultiplier()).toBe(1.0);
+        
+        manager.morale = 25;
+        expect(manager.getMoraleMultiplier()).toBe(0.7); // Penalty threshold
+    });
+
+    it('should drop morale significantly when a dev breaks down', () => {
+        manager.morale = 100;
+        manager.handleDevBreakdown();
+        expect(manager.morale).toBe(90); // Drops by 10
+    });
+
+    it('should return game over state if morale hits 0', () => {
+        manager.morale = 10;
+        manager.handleDevBreakdown();
+        expect(manager.morale).toBe(0);
+        expect(manager.state).toBe('GAME_OVER');
+    });
+
+    it('should cap morale at 100', () => {
+        manager.morale = 95;
+        manager.completeTicket();
+        expect(manager.morale).toBe(100);
+    });
 });

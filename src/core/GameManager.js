@@ -60,5 +60,20 @@ export default class GameManager {
 
     completeTicket() {
         this.budget += this.ticketReward;
+        this.morale = Math.min(100, this.morale + 5);
+    }
+
+    handleDevBreakdown() {
+        this.morale = Math.max(0, this.morale - 10);
+        if (this.morale === 0) {
+            this.state = 'GAME_OVER';
+        }
+    }
+
+    getMoraleMultiplier() {
+        if (this.morale < 30) {
+            return 0.7;
+        }
+        return 1.0;
     }
 }
