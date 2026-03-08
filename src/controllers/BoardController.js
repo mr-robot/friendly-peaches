@@ -25,7 +25,11 @@ export default class BoardController {
 
     createColumns() {
         const colWidth = this.calculateColumnWidth();
-        const tableHeight = this.scene.scale.height - 50;
+        const tableHeight = this.scene.scale.height - 150; // Leave 100px for Services area
+
+        // Create Services Area at the bottom
+        this.servicesArea = this.scene.add.rectangle(0, this.scene.scale.height - 100, this.scene.scale.width, 100, 0x1a1a2e).setOrigin(0, 0);
+        this.scene.add.text(20, this.scene.scale.height - 80, 'SERVICES', { color: '#ffffff', fontSize: '16px', fontStyle: 'bold' });
 
         this.columns.forEach((name, index) => {
             const x = this.calculateColumnPosition(index);

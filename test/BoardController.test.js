@@ -54,7 +54,12 @@ describe('BoardController', () => {
         controller.createColumns();
         
         expect(controller.columns).toEqual(['Icebox', 'Backlog', 'In Progress', 'Review', 'Done']);
-        expect(mockScene.add.text).toHaveBeenCalledTimes(5);
+        expect(mockScene.add.text).toHaveBeenCalledTimes(6); // 5 columns + 1 services header
+    });
+
+    it('should create a Services area during column creation', () => {
+        controller.createColumns();
+        expect(controller.servicesArea).toBeDefined();
     });
 
     it('should populate an Icebox column and populate it with tickets', () => {
@@ -78,7 +83,7 @@ describe('BoardController', () => {
         controller.createColumns();
 
         // 5 columns * 2 rectangles per column (bg + header) = 10 rectangles
-        expect(mockScene.add.rectangle).toHaveBeenCalledTimes(10);
+        expect(mockScene.add.rectangle).toHaveBeenCalledTimes(11); // 10 columns + 1 services area
         // 5 columns * 1 drop zone per column = 5 zones
         expect(mockScene.add.zone).toHaveBeenCalledTimes(5);
         
