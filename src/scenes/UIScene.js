@@ -112,36 +112,11 @@ export default class UIScene extends Phaser.Scene {
         this.reviewTitle.setVisible(false);
         this.reviewText.setVisible(false);
         this.nextSprintButton.setVisible(false);
-        this.nextSprintText.setVisible(false);
-    }
-
-    updateUI(gameManager) {
-        if (!gameManager) return;
-        
-        this.budgetText.setText(`Budget: $${Math.floor(gameManager.budget)}`);
-        this.moraleText.setText(`Morale: ${Math.floor(gameManager.morale)}%`);
-        this.timerText.setText(`Sprint Time: ${Math.ceil(gameManager.sprintTime)}s`);
-        this.stateText.setText(gameManager.state);
-        
-        // Show/hide UI elements based on state
-        switch (gameManager.state) {
-            case 'PLANNING':
-                this.startButton.setVisible(true);
-                this.startText.setVisible(true);
-                this.timerText.setColor('#ffffff');
-                break;
-                
-            case 'ACTIVE':
-                this.startButton.setVisible(false);
-                this.startText.setVisible(false);
-                this.timerText.setColor('#ffffff');
-                break;
-                
-            case 'REVIEW':
-                this.startButton.setVisible(false);
-                this.startText.setVisible(false);
-                this.timerText.setColor('#ff0000');
-                break;
+        // Update Morale Text Color based on threshold
+        if (gameManager.morale < 30) {
+            this.moraleText.setColor('#ff0000'); // Red for low morale
+        } else {
+            this.moraleText.setColor('#ffff00'); // Yellow normally
         }
     }
 }
