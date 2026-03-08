@@ -2,6 +2,15 @@ import Phaser from 'phaser';
 
 export default class UIScene extends Phaser.Scene {
     constructor() {
+        this.techHealthText.setText(Tech Health: %);
+        // Update Tech Health Text Color based on threshold
+        if (gameManager.techHealth < 25) {
+            this.techHealthText.setColor('#ff0000'); // Red for danger
+        } else if (gameManager.techHealth < 50) {
+            this.techHealthText.setColor('#ffaa00'); // Orange for warning
+        } else {
+            this.techHealthText.setColor('#00ffff'); // Cyan normally
+        }
         super({ key: 'UIScene' });
     }
 
@@ -25,6 +34,12 @@ export default class UIScene extends Phaser.Scene {
 
         // Timer Text
         this.timerText = this.add.text(400, 15, 'Sprint Time: 60s', {
+        // Tech Health Text
+        this.techHealthText = this.add.text(600, 15, 'Tech Health: 100%', {
+            fontSize: '18px',
+            color: '#00ffff',
+            fontStyle: 'bold'
+        });
             fontSize: '18px',
             color: '#ffffff',
             fontStyle: 'bold'
