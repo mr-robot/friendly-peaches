@@ -748,4 +748,92 @@ describe('BoardController', () => {
         
         vi.restoreAllMocks();
     });
+
+    it('should decrease techHealth when a bug is spawned', () => {
+        const mockGameManager = { handleBugSpawned: vi.fn(), state: 'ACTIVE' };
+        controller.scene.gameManager = mockGameManager;
+        
+        // Mock random to always spawn a bug for low quality
+        vi.spyOn(Math, 'random').mockReturnValue(0.5);
+        
+        const ticket = { 
+            maxProgress: 100, 
+            progress: 90, // Just below max to trigger completion on update
+            quality: 20, // Low quality to ensure bug spawns
+            currentColumn: 'In Progress',
+            stackedDevs: [{ role: 'Backend' }], // Add a dev to work on ticket
+            updateProgressVisual: vi.fn(),
+            startParticles: vi.fn(),
+            stopParticles: vi.fn(),
+            requirement: 'Backend' // Match dev role for work calculation
+        };
+        controller.tickets = [ticket];
+        
+        // This update will add 20 progress (1 dev * 2.0 match * 10 rate), crossing 100, triggering bug spawn
+        controller.update(0, 1000);
+        
+        expect(mockGameManager.handleBugSpawned).toHaveBeenCalled();
+        
+        vi.restoreAllMocks();
+    });
+
+    it('should increase techHealth when a bug is completed', () => {
+        const mockGameManager = { completeTicket: vi.fn(), state: 'ACTIVE' };
+        controller.scene.gameManager = mockGameManager;
+        
+        const bug = { 
+            constructor: { name: 'BugCard' },
+            currentColumn: 'Done',
+            rewarded: false
+        };
+        controller.tickets = [bug];
+        
+        // Simulating the check in MainGameScene.update
+        controller.tickets.forEach(t => {
+            if (t.currentColumn === 'Done' && !t.rewarded) {
+                t.rewarded = true;
+                mockGameManager.completeTicket(t);
+            }
+        });
+        
+        expect(mockGameManager.completeTicket).toHaveBeenCalledWith(bug);
+    });
+
+    it('should prevent stacking on features if techHealth < 25 (On-Call)', () => {
+        const mockGameManager = { isOnCallRequired: vi.fn().mockReturnValue(true) };
+        controller.scene.gameManager = mockGameManager;
+        
+        const dev = { constructor: { name: 'DevCard' }, x: 100, y: 100, input: { dragStartX: 50, dragStartY: 50 } };
+        const ticket = { 
+            constructor: { name: 'TicketCard' },
+            x: 100, y: 100, 
+            currentColumn: 'In Progress',
+            stackedDevs: []
+        };
+        controller.tickets = [ticket];
+        
+        controller.handleDrop(dev, null);
+        
+        expect(dev.x).toBe(50); // Snapped back
+        expect(ticket.stackedDevs.length).toBe(0);
+    });
+
+    it('should allow stacking on bugs if techHealth < 25 (On-Call)', () => {
+        const mockGameManager = { isOnCallRequired: vi.fn().mockReturnValue(true) };
+        controller.scene.gameManager = mockGameManager;
+        
+        const dev = { constructor: { name: 'DevCard' }, x: 100, y: 100, startBreathing: vi.fn() };
+        const bug = { 
+            constructor: { name: 'BugCard' },
+            x: 100, y: 100, 
+            currentColumn: 'In Progress',
+            stackedDevs: []
+        };
+        controller.tickets = [bug];
+        
+        controller.handleDrop(dev, null);
+        
+        expect(dev.x).toBe(100); // Accepted
+        expect(bug.stackedDevs.length).toBe(1);
+    });
 });

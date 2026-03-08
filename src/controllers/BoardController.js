@@ -257,6 +257,21 @@ export default class BoardController {
             );
             
             if (overlappingTicket) {
+                // Check on-call restriction: prevent stacking on features if techHealth < 25
+                if (this.scene.gameManager && this.scene.gameManager.isOnCallRequired()) {
+                    // Allow stacking on bugs during on-call, but not on regular tickets
+                    if (overlappingTicket.constructor.name !== 'BugCard') {
+                        // Snap back to original position
+                        card.x = card.input.dragStartX;
+                        card.y = card.input.dragStartY;
+                        this.logInteraction('handleDrop:dev:on-call-restriction', {
+                            ticketType: overlappingTicket.constructor.name,
+                            reason: 'On-call duty - only bugs allowed'
+                        });
+                        return;
+                    }
+                }
+                
                 this.logInteraction('handleDrop:dev:match', {
                     ticketTitle: overlappingTicket.title || null,
                     ticketType: overlappingTicket.constructor.name,
@@ -446,6 +461,11 @@ export default class BoardController {
         bug.currentColumn = 'Backlog';
         this.scene.add.existing(bug);
         this.tickets.push(bug);
+        
+        // Decrease tech health when a bug spawns
+        if (this.scene.gameManager && typeof this.scene.gameManager.handleBugSpawned === 'function') {
+            this.scene.gameManager.handleBugSpawned();
+        }
     }
 
     update(time, delta) {
