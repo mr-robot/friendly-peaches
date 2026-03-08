@@ -25,23 +25,23 @@ export default class GameManager {
         }
     }
 
-    evaluateSprint(completedTickets, committedTickets) {
-        if (this.state !== 'REVIEW') {
-            return null;
-        }
-
-        const budgetEarned = completedTickets * this.ticketReward;
-        const netBudget = budgetEarned - this.baseOperatingCost;
+    evaluateSprint() {
+        const completed = this.sprintCommitments.filter(ticket => 
+            ticket.currentColumn === 'Done'
+        );
+        const missed = this.sprintCommitments.filter(ticket => 
+            ticket.currentColumn !== 'Done'
+        );
         
-        this.budget += netBudget;
-
-        return {
-            completed: completedTickets,
-            committed: committedTickets,
-            budgetEarned: budgetEarned,
-            operatingCost: this.baseOperatingCost,
-            netBudget: netBudget
-        };
+        // Rewards: +1000 budget per completed commitment
+        this.budget += completed.length * 1000;
+        
+        // Penalties: -500 budget per missed commitment
+        this.budget -= missed.length * 500;
+        
+        // Clear commitments for next sprint
+        this.sprintCommitments = [];
+        this.currentSprint++;
     }
 
     tick(deltaMs, stats = { activeDevs: 0 }) {

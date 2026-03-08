@@ -69,21 +69,18 @@ describe('GameManager', () => {
         manager.startSprint();
         manager.tick(60000); // end sprint
         
-        // base operating cost is 500
-        manager.baseOperatingCost = 500;
-        manager.ticketReward = 300;
+        // Add some commitments for testing
+        const ticket1 = { id: 'ticket1', currentColumn: 'Done' };
+        const ticket2 = { id: 'ticket2', currentColumn: 'In Progress' };
+        manager.addSprintCommitment(ticket1);
+        manager.addSprintCommitment(ticket2);
         
         const initialBudget = manager.budget;
         
-        const result = manager.evaluateSprint(2, 4); // completed 2, committed 4
+        manager.evaluateSprint();
         
-        expect(result.completed).toBe(2);
-        expect(result.committed).toBe(4);
-        expect(result.budgetEarned).toBe(600); // 2 * 300
-        expect(result.operatingCost).toBe(500);
-        expect(result.netBudget).toBe(100); // 600 - 500
-        
-        expect(manager.budget).toBe(initialBudget + 100);
+        // Should have +1000 for completed ticket1, -500 for missed ticket2
+        expect(manager.budget).toBe(initialBudget + 500); // 10000 + 1000 - 500
     });
 
     it('should calculate morale multiplier correctly', () => {
@@ -159,6 +156,28 @@ describe('GameManager', () => {
             const ticket = { id: 'ticket1' };
             manager.addSprintCommitment(ticket);
             expect(manager.sprintCommitments).toContain(ticket);
+        });
+    });
+
+    describe('Sprint Evaluation', () => {
+        it('should reward budget for completed commitments', () => {
+            const ticket = { id: 'ticket1', currentColumn: 'Done' };
+            manager.sprintCommitments = [ticket];
+            
+            const initialBudget = manager.budget;
+            manager.evaluateSprint();
+            
+            expect(manager.budget).toBeGreaterThan(initialBudget);
+        });
+
+        it('should penalize budget for missed commitments', () => {
+            const ticket = { id: 'ticket1', currentColumn: 'In Progress' };
+            manager.sprintCommitments = [ticket];
+            
+            const initialBudget = manager.budget;
+            manager.evaluateSprint();
+            
+            expect(manager.budget).toBeLessThan(initialBudget);
         });
     });
 });
