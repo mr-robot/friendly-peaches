@@ -1,6 +1,7 @@
 export default class GameManager {
     constructor() {
         this.budget = 10000;
+        this.techHealth = 100;
         this.morale = 100;
         this.sprintTime = 60;
         this.state = 'PLANNING';
@@ -64,6 +65,9 @@ export default class GameManager {
             this.budget += this.ticketReward;
         }
         this.morale = Math.min(100, this.morale + 5);
+        if (isBug) {
+            this.techHealth = Math.min(100, this.techHealth + 10);
+        }
     }
 
     handleDevBreakdown() {
@@ -78,5 +82,15 @@ export default class GameManager {
             return 0.7;
         }
         return 1.0;
+    }
+    handleBugSpawned() {
+        this.techHealth = Math.max(0, this.techHealth - 10);
+        if (this.techHealth === 0) {
+            this.state = 'GAME_OVER';
+        }
+    }
+
+    isOnCallRequired() {
+        return this.techHealth < 25;
     }
 }

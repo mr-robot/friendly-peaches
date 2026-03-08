@@ -115,4 +115,33 @@ describe('GameManager', () => {
         manager.completeTicket();
         expect(manager.morale).toBe(100);
     });
+    it('should initialize techHealth at 100', () => {
+        expect(manager.techHealth).toBe(100);
+    });
+
+    it('should decrease techHealth when a bug is spawned', () => {
+        manager.handleBugSpawned();
+        expect(manager.techHealth).toBe(90);
+    });
+
+    it('should increase techHealth when a bug is completed', () => {
+        manager.techHealth = 80;
+        const bugCard = { constructor: { name: 'BugCard' } };
+        manager.completeTicket(bugCard);
+        expect(manager.techHealth).toBe(90);
+    });
+
+    it('should trigger GAME_OVER when techHealth hits 0', () => {
+        manager.techHealth = 10;
+        manager.handleBugSpawned();
+        expect(manager.techHealth).toBe(0);
+        expect(manager.state).toBe('GAME_OVER');
+    });
+
+    it('should identify on-call state when techHealth < 25', () => {
+        manager.techHealth = 30;
+        expect(manager.isOnCallRequired()).toBe(false);
+        manager.techHealth = 20;
+        expect(manager.isOnCallRequired()).toBe(true);
+    });
 });
