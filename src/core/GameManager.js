@@ -8,6 +8,8 @@ export default class GameManager {
         this.devCostPerSecond = 10;
         this.ticketReward = 2000;
         this.baseOperatingCost = 5000; // Base cost per sprint
+        this.sprintCommitments = [];
+        this.currentSprint = 1;
     }
 
     startSprint() {
@@ -92,5 +94,21 @@ export default class GameManager {
 
     isOnCallRequired() {
         return this.techHealth < 25;
+    }
+
+    endSprint() {
+        this.state = 'REVIEW';
+        this.evaluateSprint();
+    }
+
+    addSprintCommitment(ticket) {
+        this.sprintCommitments.push(ticket);
+    }
+
+    removeSprintCommitment(ticket) {
+        const index = this.sprintCommitments.indexOf(ticket);
+        if (index > -1) {
+            this.sprintCommitments.splice(index, 1);
+        }
     }
 }

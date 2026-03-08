@@ -144,4 +144,21 @@ describe('GameManager', () => {
         manager.techHealth = 20;
         expect(manager.isOnCallRequired()).toBe(true);
     });
+
+    describe('Sprint Phase Management', () => {
+        it('should initialize in PLANNING phase', () => {
+            expect(manager.state).toBe('PLANNING');
+        });
+
+        it('should transition to ACTIVE when startSprint is called', () => {
+            manager.startSprint();
+            expect(manager.state).toBe('ACTIVE');
+        });
+
+        it('should track sprint commitments', () => {
+            const ticket = { id: 'ticket1' };
+            manager.addSprintCommitment(ticket);
+            expect(manager.sprintCommitments).toContain(ticket);
+        });
+    });
 });
