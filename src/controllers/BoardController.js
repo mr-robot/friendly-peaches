@@ -64,6 +64,29 @@ export default class BoardController {
                 zone: zone
             };
         });
+        
+        // Create Sprint Commitment Zone
+        const commitmentWidth = 200;
+        const commitmentX = this.scene.scale.width - commitmentWidth - 20;
+        const commitmentY = 50;
+        const commitmentHeight = 150;
+
+        this.sprintCommitmentZone = {
+            bg: this.scene.add.rectangle(commitmentX, commitmentY, commitmentWidth, commitmentHeight, 0x2d4a2b).setOrigin(0, 0),
+            zone: this.scene.add.zone(commitmentX, commitmentY, commitmentWidth, commitmentHeight).setOrigin(0, 0).setDropZone(),
+            x: commitmentX,
+            y: commitmentY,
+            width: commitmentWidth,
+            height: commitmentHeight
+        };
+
+        this.scene.add.text(commitmentX + 10, commitmentY + 10, 'SPRINT\nCOMMITMENT', {
+            color: '#ffffff',
+            fontSize: '14px',
+            fontStyle: 'bold'
+        });
+
+        this.sprintCommitmentZone.zone.columnName = 'Sprint Commitment';
     }
 
     showIcebox() {
@@ -334,6 +357,31 @@ export default class BoardController {
                         this.updateTicketArrays(card);
                         return;
                     }
+                }
+
+                // Rule 4: Sprint Commitment zone (PLANNING phase only)
+                if (dropZone.columnName === 'Sprint Commitment') {
+                    if (isPlanning) {
+                        card.currentColumn = 'Sprint Commitment';
+                        this.updateTicketArrays(card);
+                        
+                        // Track commitment in GameManager
+                        if (gameManager && typeof gameManager.addSprintCommitment === 'function') {
+                            gameManager.addSprintCommitment(card);
+                        }
+                        
+                        // Position card in commitment zone
+                        card.x = this.sprintCommitmentZone.x + this.sprintCommitmentZone.width / 2;
+                        card.y = this.sprintCommitmentZone.y + 50 + (gameManager.sprintCommitments.length * 30);
+                        return;
+                    }
+                    
+                    // Snap back if not in planning phase
+                    if (card.input) {
+                        card.x = card.input.dragStartX;
+                        card.y = card.input.dragStartY;
+                    }
+                    return;
                 }
 
                 // If no rules matched, snap back

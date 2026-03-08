@@ -54,7 +54,7 @@ describe('BoardController', () => {
         controller.createColumns();
         
         expect(controller.columns).toEqual(['Icebox', 'Backlog', 'In Progress', 'Review', 'Done']);
-        expect(mockScene.add.text).toHaveBeenCalledTimes(6); // 5 columns + 1 services header
+        expect(mockScene.add.text).toHaveBeenCalledTimes(7); // 5 columns + 1 services header + 1 commitment header
     });
 
     it('should create a Services area during column creation', () => {
@@ -83,13 +83,13 @@ describe('BoardController', () => {
         controller.createColumns();
 
         // 5 columns * 2 rectangles per column (bg + header) = 10 rectangles
-        expect(mockScene.add.rectangle).toHaveBeenCalledTimes(11); // 10 columns + 1 services area
+        expect(mockScene.add.rectangle).toHaveBeenCalledTimes(12); // 10 columns + 1 services area + 1 commitment zone
         // 5 columns * 1 drop zone per column = 5 zones
-        expect(mockScene.add.zone).toHaveBeenCalledTimes(5);
+        expect(mockScene.add.zone).toHaveBeenCalledTimes(6); // 5 columns + 1 commitment zone
         
         // Check that setDropZone was called on each created zone
         const zones = mockScene.add.zone.mock.results.map(r => r.value);
-        expect(zones.length).toBe(5);
+        expect(zones.length).toBe(6);
         zones.forEach(zone => {
             expect(zone.setDropZone).toHaveBeenCalled();
         });
@@ -835,5 +835,40 @@ describe('BoardController', () => {
         
         expect(dev.x).toBe(100); // Accepted
         expect(bug.stackedDevs.length).toBe(1);
+    });
+
+    describe('Sprint Commitment Zone', () => {
+        it('should create a Sprint Commitment zone during column creation', () => {
+            controller.createColumns();
+            expect(controller.sprintCommitmentZone).toBeDefined();
+            expect(controller.sprintCommitmentZone.zone.setDropZone).toHaveBeenCalled();
+        });
+    });
+
+    describe('Sprint Commitment Logic', () => {
+        it('should allow dropping tickets into Sprint Commitment zone during PLANNING', () => {
+            const mockGameManager = { 
+                state: 'PLANNING',
+                addSprintCommitment: vi.fn(),
+                sprintCommitments: []
+            };
+            controller.scene.gameManager = mockGameManager;
+            controller.updateTicketArrays = vi.fn();
+            
+            // Create sprint commitment zone
+            controller.createColumns();
+            
+            const ticket = { 
+                constructor: { name: 'TicketCard' },
+                currentColumn: 'Backlog'
+            };
+            const dropZone = { columnName: 'Sprint Commitment' };
+            
+            controller.handleDrop(ticket, dropZone);
+            
+            expect(ticket.currentColumn).toBe('Sprint Commitment');
+            expect(mockGameManager.addSprintCommitment).toHaveBeenCalledWith(ticket);
+            expect(controller.updateTicketArrays).toHaveBeenCalledWith(ticket);
+        });
     });
 });
