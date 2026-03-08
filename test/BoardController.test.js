@@ -54,7 +54,7 @@ describe('BoardController', () => {
         controller.createColumns();
         
         expect(controller.columns).toEqual(['Icebox', 'Backlog', 'In Progress', 'Review', 'Done']);
-        expect(mockScene.add.text).toHaveBeenCalledTimes(7); // 5 columns + 1 services header + 1 commitment header
+        expect(mockScene.add.text).toHaveBeenCalledTimes(8); // 5 columns + 1 services header + 1 commitment header + 1 phase indicator
     });
 
     it('should create a Services area during column creation', () => {
@@ -869,6 +869,26 @@ describe('BoardController', () => {
             expect(ticket.currentColumn).toBe('Sprint Commitment');
             expect(mockGameManager.addSprintCommitment).toHaveBeenCalledWith(ticket);
             expect(controller.updateTicketArrays).toHaveBeenCalledWith(ticket);
+        });
+    });
+
+    describe('Sprint Phase UI Indicators', () => {
+        it('should create phase indicator during column creation', () => {
+            controller.createColumns();
+            expect(controller.phaseIndicator).toBeDefined();
+            expect(mockScene.add.text).toHaveBeenCalledWith(
+                expect.any(Number),
+                expect.any(Number),
+                expect.stringContaining('PLANNING'),
+                expect.any(Object)
+            );
+        });
+
+        it('should update phase indicator text when phase changes', () => {
+            controller.createColumns();
+            controller.updatePhaseIndicator('ACTIVE');
+            
+            expect(controller.phaseIndicator.text).toBe('Phase: ACTIVE');
         });
     });
 });

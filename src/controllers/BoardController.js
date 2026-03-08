@@ -87,6 +87,20 @@ export default class BoardController {
         });
 
         this.sprintCommitmentZone.zone.columnName = 'Sprint Commitment';
+
+        // Create Phase Indicator
+        this.phaseIndicator = this.scene.add.text(
+            this.scene.scale.width / 2,
+            20,
+            `Phase: ${this.scene.gameManager ? this.scene.gameManager.state : 'PLANNING'}`,
+            {
+                color: '#ffffff',
+                fontSize: '18px',
+                fontStyle: 'bold',
+                backgroundColor: '#333333',
+                padding: { x: 10, y: 5 }
+            }
+        ).setOrigin(0.5, 0);
     }
 
     showIcebox() {
@@ -581,5 +595,11 @@ export default class BoardController {
                 }
             }
         });
+    }
+
+    updatePhaseIndicator(phase) {
+        if (this.phaseIndicator) {
+            this.phaseIndicator.text = `Phase: ${phase}`;
+        }
     }
 }
