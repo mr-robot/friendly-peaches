@@ -180,4 +180,28 @@ describe('GameManager', () => {
             expect(manager.budget).toBeLessThan(initialBudget);
         });
     });
+
+    describe('Reputation Resource', () => {
+        it('should initialize reputation at 0', () => {
+            expect(manager.reputation).toBe(0);
+        });
+
+        it('should increase reputation when addReputation is called', () => {
+            manager.addReputation(50);
+            expect(manager.reputation).toBe(50);
+        });
+
+        it('should cap reputation at 1000', () => {
+            manager.addReputation(2000);
+            expect(manager.reputation).toBe(1000);
+        });
+
+        it('should check escape eligibility at 500 reputation', () => {
+            manager.reputation = 500;
+            expect(manager.canEscape()).toBe(true);
+            
+            manager.reputation = 499;
+            expect(manager.canEscape()).toBe(false);
+        });
+    });
 });

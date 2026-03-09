@@ -10,6 +10,9 @@ export default class GameManager {
         this.baseOperatingCost = 5000; // Base cost per sprint
         this.sprintCommitments = [];
         this.currentSprint = 1;
+        this.reputation = 0;
+        this.maxReputation = 1000;
+        this.escapeThreshold = 500;
     }
 
     startSprint() {
@@ -110,5 +113,17 @@ export default class GameManager {
         if (index > -1) {
             this.sprintCommitments.splice(index, 1);
         }
+    }
+
+    addReputation(amount) {
+        this.reputation = Math.min(this.maxReputation, this.reputation + amount);
+    }
+
+    subtractReputation(amount) {
+        this.reputation = Math.max(0, this.reputation - amount);
+    }
+
+    canEscape() {
+        return this.reputation >= this.escapeThreshold;
     }
 }
