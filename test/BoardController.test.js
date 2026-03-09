@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import BoardController from '../src/controllers/BoardController.js';
 
 // Mock BugCard so it doesn't trigger Phaser imports
@@ -7,6 +7,38 @@ vi.mock('../src/entities/BugCard.js', () => {
         default: class MockBugCard {
             constructor(scene, x, y, title, requirement) {
                 this.constructorName = 'BugCard';
+            }
+        }
+    };
+});
+
+// Mock TechDebtCard to avoid Phaser imports
+vi.mock('../src/entities/TechDebtCard.js', () => {
+    return {
+        default: class MockTechDebtCard {
+            constructor(scene, x, y, title) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.title = title;
+                this.isFaceDown = true;
+                this.attachToService = vi.fn();
+            }
+        }
+    };
+});
+
+vi.mock('../src/entities/CardContainer.js', () => {
+    return {
+        default: class MockCardContainer {
+            constructor(scene, x, y, title) {
+                this.scene = scene;
+                this.x = x;
+                this.y = y;
+                this.title = title;
+                this.bg = { setTint: vi.fn() };
+                this.setVisible = vi.fn();
+                this.setInteractive = vi.fn();
             }
         }
     };
@@ -889,6 +921,42 @@ describe('BoardController', () => {
             controller.updatePhaseIndicator('ACTIVE');
             
             expect(controller.phaseIndicator.text).toBe('Phase: ACTIVE');
+        });
+    });
+
+    describe('Tech Debt Spawning', () => {
+        it('should spawn tech debt when ticket is rushed', () => {
+            const ticket = {
+                title: 'Quick Feature',
+                requirement: 'Frontend',
+                wasRushed: true,
+                currentColumn: 'Done'
+            };
+            
+            controller.spawnTechDebtForTicket(ticket);
+            
+            expect(controller.techDebtCards.length).toBe(1);
+            expect(controller.techDebtCards[0].title).toContain('Quick Feature');
+            expect(controller.techDebtCards[0].isFaceDown).toBe(true);
+        });
+
+        it('should attach debt to random service', () => {
+            const service1 = { debtCards: [] };
+            const service2 = { debtCards: [] };
+            controller.serviceCards = [service1, service2];
+            
+            const ticket = {
+                title: 'Database Hack',
+                requirement: 'Backend',
+                wasRushed: true,
+                currentColumn: 'Done'
+            };
+            
+            controller.spawnTechDebtForTicket(ticket);
+            
+            // Check that attachToService was called on the created debt
+            expect(controller.techDebtCards.length).toBe(1);
+            expect(controller.techDebtCards[0].attachToService).toHaveBeenCalled();
         });
     });
 });

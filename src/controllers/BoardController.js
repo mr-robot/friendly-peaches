@@ -1,4 +1,5 @@
 import BugCard from '../entities/BugCard.js';
+import TechDebtCard from '../entities/TechDebtCard.js';
 
 export default class BoardController {
     constructor(scene) {
@@ -9,6 +10,8 @@ export default class BoardController {
         this.devs = [];
         this.bugs = [];
         this.iceboxTickets = [];
+        this.techDebtCards = [];
+        this.serviceCards = [];
     }
 
     logInteraction(event, payload = {}) {
@@ -601,5 +604,24 @@ export default class BoardController {
         if (this.phaseIndicator) {
             this.phaseIndicator.text = `Phase: ${phase}`;
         }
+    }
+
+    spawnTechDebtForTicket(ticket) {
+        // Only spawn debt if ticket was rushed or had low quality
+        if (!ticket.wasRushed && (!ticket.quality || ticket.quality >= 50)) {
+            return;
+        }
+        
+        const debtTitle = `Tech Debt: ${ticket.title}`;
+        const debt = new TechDebtCard(this.scene, 0, 0, debtTitle);
+        
+        // Attach to random service if available
+        if (this.serviceCards.length > 0) {
+            const randomService = this.serviceCards[Math.floor(Math.random() * this.serviceCards.length)];
+            debt.attachToService(randomService);
+        }
+        
+        this.techDebtCards.push(debt);
+        this.scene.add.existing(debt);
     }
 }
