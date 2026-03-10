@@ -27,6 +27,11 @@ describe('ServiceCard', () => {
                 text: vi.fn().mockReturnValue({
                     setOrigin: vi.fn().mockReturnThis()
                 })
+            },
+            tweens: {
+                add: vi.fn().mockReturnValue({
+                    stop: vi.fn()
+                })
             }
         };
     });
@@ -43,5 +48,33 @@ describe('ServiceCard', () => {
         // It shouldn't have any stacked devs or anything else initially
         expect(service.debtCards).toBeDefined();
         expect(service.debtCards.length).toBe(0);
+    });
+
+    describe('Service Leading Indicators', () => {
+        it('should show visual degradation when debt accumulates', () => {
+            const service = new ServiceCard(mockScene, 0, 0, 'Auth Service');
+            
+            // Add debt cards
+            const debt1 = { isFaceDown: true };
+            const debt2 = { isFaceDown: true };
+            service.debtCards = [debt1, debt2];
+            
+            service.updateVisualIndicators();
+            
+            expect(service.wobbleAnimation).toBe(true);
+            expect(service.warningIndicator).toBe(true);
+        });
+
+        it('should increase wobble intensity with more debt', () => {
+            const service = new ServiceCard(mockScene, 0, 0, 'Payment Service');
+            
+            service.debtCards = [{}, {}]; // 2 debt cards
+            service.updateVisualIndicators();
+            expect(service.wobbleIntensity).toBe(0.2);
+            
+            service.debtCards = [{}, {}, {}, {}]; // 4 debt cards
+            service.updateVisualIndicators();
+            expect(service.wobbleIntensity).toBe(0.4);
+        });
     });
 });
