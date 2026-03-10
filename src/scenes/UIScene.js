@@ -2,15 +2,6 @@ import Phaser from 'phaser';
 
 export default class UIScene extends Phaser.Scene {
     constructor() {
-        this.techHealthText.setText(Tech Health: %);
-        // Update Tech Health Text Color based on threshold
-        if (gameManager.techHealth < 25) {
-            this.techHealthText.setColor('#ff0000'); // Red for danger
-        } else if (gameManager.techHealth < 50) {
-            this.techHealthText.setColor('#ffaa00'); // Orange for warning
-        } else {
-            this.techHealthText.setColor('#00ffff'); // Cyan normally
-        }
         super({ key: 'UIScene' });
     }
 
@@ -34,16 +25,31 @@ export default class UIScene extends Phaser.Scene {
 
         // Timer Text
         this.timerText = this.add.text(400, 15, 'Sprint Time: 60s', {
+            fontSize: '18px',
+            color: '#ffffff',
+            fontStyle: 'bold'
+        });
+
         // Tech Health Text
         this.techHealthText = this.add.text(600, 15, 'Tech Health: 100%', {
             fontSize: '18px',
             color: '#00ffff',
             fontStyle: 'bold'
         });
+
+        // Reputation Text
+        this.reputationText = this.add.text(800, 15, 'Reputation: 0', {
             fontSize: '18px',
-            color: '#ffffff',
+            color: '#00ff00',
             fontStyle: 'bold'
         });
+
+        // Escape Indicator
+        this.escapeIndicator = this.add.text(400, 50, 'ESCAPE AVAILABLE!', {
+            fontSize: '24px',
+            color: '#00ff00',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setVisible(false);
 
         // Sprint State / Controls
         this.stateText = this.add.text(this.scale.width - 150, 15, 'PLANNING', {
@@ -100,6 +106,74 @@ export default class UIScene extends Phaser.Scene {
             }
         });
     }
+
+    updateUI(gameManager) {
+        // Update Budget
+        this.budgetText.setText(`Budget: $${gameManager.budget}`);
+        
+        // Update Morale
+        this.moraleText.setText(`Morale: ${gameManager.morale}%`);
+        if (gameManager.morale < 30) {
+            this.moraleText.setColor('#ff0000'); // Red for low morale
+        } else {
+            this.moraleText.setColor('#ffff00'); // Yellow normally
+        }
+        
+        // Update Timer
+        this.timerText.setText(`Sprint Time: ${Math.ceil(gameManager.sprintTime)}s`);
+        
+        // Update Tech Health
+        this.techHealthText.setText(`Tech Health: ${gameManager.techHealth}%`);
+        if (gameManager.techHealth < 25) {
+            this.techHealthText.setColor('#ff0000'); // Red for danger
+        } else if (gameManager.techHealth < 50) {
+            this.techHealthText.setColor('#ffaa00'); // Orange for warning
+        } else {
+            this.techHealthText.setColor('#00ffff'); // Cyan normally
+        }
+
+        // Update Reputation
+        this.reputationText.setText(`Reputation: ${Math.floor(gameManager.reputation)}`);
+        
+        // Color code reputation
+        if (gameManager.reputation < 100) {
+            this.reputationText.setColor('#ff0000'); // Red - very low
+        } else if (gameManager.reputation < 300) {
+            this.reputationText.setColor('#ffaa00'); // Orange - low
+        } else {
+            this.reputationText.setColor('#00ff00'); // Green - good
+        }
+
+        // Show escape indicator
+        if (gameManager.canEscape && gameManager.canEscape()) {
+            this.escapeIndicator.setVisible(true);
+        } else {
+            this.escapeIndicator.setVisible(false);
+        }
+        
+        // Update State
+        this.stateText.setText(gameManager.state);
+        
+        // Show/hide start button
+        if (gameManager.state === 'PLANNING') {
+            this.startButton.setVisible(true);
+            this.startText.setVisible(true);
+        } else {
+            this.startButton.setVisible(false);
+            this.startText.setVisible(false);
+        }
+        
+        // Show review overlay if in REVIEW state
+        if (gameManager.state === 'REVIEW') {
+            this.showSprintReview({
+                completed: 5,
+                committed: 3,
+                budgetEarned: 10000,
+                operatingCost: 5000,
+                netBudget: 5000
+            });
+        }
+    }
     
     showSprintReview(result) {
         this.reviewOverlay.setVisible(true);
@@ -127,11 +201,6 @@ export default class UIScene extends Phaser.Scene {
         this.reviewTitle.setVisible(false);
         this.reviewText.setVisible(false);
         this.nextSprintButton.setVisible(false);
-        // Update Morale Text Color based on threshold
-        if (gameManager.morale < 30) {
-            this.moraleText.setColor('#ff0000'); // Red for low morale
-        } else {
-            this.moraleText.setColor('#ffff00'); // Yellow normally
-        }
+        this.nextSprintText.setVisible(false);
     }
 }
