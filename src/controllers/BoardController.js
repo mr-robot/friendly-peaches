@@ -624,4 +624,42 @@ export default class BoardController {
         this.techDebtCards.push(debt);
         this.scene.add.existing(debt);
     }
+
+    handleManagerStack(manager, target) {
+        if (target.constructor.name === 'DevCard') {
+            this.stackManagerOnDev(manager, target);
+        } else if (target.constructor.name === 'StakeholderCard') {
+            this.stackManagerOnStakeholder(manager, target);
+        }
+    }
+
+    stackManagerOnDev(manager, dev) {
+        // Apply management bonus
+        manager.applyToDev(dev);
+        
+        // Position manager on top of dev
+        manager.x = dev.x;
+        manager.y = dev.y - 20;
+        
+        // Shield dev from interrupts
+        if (manager.canShield) {
+            dev.isShielded = true;
+            dev.shieldingManager = manager;
+        }
+        
+        // Track the stacking
+        dev.stackedManager = manager;
+        manager.currentDev = dev;
+    }
+
+    stackManagerOnStakeholder(manager, stakeholder) {
+        // Negotiation logic
+        manager.x = stakeholder.x;
+        manager.y = stakeholder.y - 20;
+        
+        // Reduce stakeholder demands
+        if (stakeholder.reduceDemands) {
+            stakeholder.reduceDemands(manager.stakeholderNegotiationPower);
+        }
+    }
 }

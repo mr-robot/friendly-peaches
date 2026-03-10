@@ -959,4 +959,43 @@ describe('BoardController', () => {
             expect(controller.techDebtCards[0].attachToService).toHaveBeenCalled();
         });
     });
+
+    describe('Manager-Dev Stacking', () => {
+        it('should apply speed bonus when manager stacked on dev', () => {
+            const dev = { 
+                constructor: { name: 'DevCard' },
+                speedMultiplier: 1.0,
+                x: 100, y: 100
+            };
+            const manager = { 
+                constructor: { name: 'ManagerCard' },
+                managementBonus: 1.5,
+                applyToDev: vi.fn().mockImplementation((targetDev) => {
+                    targetDev.speedMultiplier *= manager.managementBonus;
+                }),
+                x: 100, y: 100
+            };
+            
+            controller.handleManagerStack(manager, dev);
+            
+            expect(manager.applyToDev).toHaveBeenCalledWith(dev);
+            expect(dev.speedMultiplier).toBe(1.5);
+        });
+
+        it('should allow manager to shield dev from interrupts', () => {
+            const dev = { 
+                constructor: { name: 'DevCard' },
+                isShielded: false
+            };
+            const manager = { 
+                constructor: { name: 'ManagerCard' },
+                canShield: true,
+                applyToDev: vi.fn()
+            };
+            
+            controller.stackManagerOnDev(manager, dev);
+            
+            expect(dev.isShielded).toBe(true);
+        });
+    });
 });
