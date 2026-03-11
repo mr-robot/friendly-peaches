@@ -44,6 +44,41 @@ export default class UIScene extends Phaser.Scene {
             fontStyle: 'bold'
         });
 
+        // Reveal Token display
+        this.revealTokenText = this.add.text(1000, 15, '🔍 Reveal: 0', {
+            fontSize: '18px',
+            color: '#ffdd88',
+            fontStyle: 'bold'
+        });
+
+        // Reveal Token button (spend a token to reveal a hidden card)
+        this.revealButton = this.add.rectangle(1200, 30, 140, 30, 0x886600).setOrigin(0.5).setInteractive();
+        this.revealButtonText = this.add.text(1200, 30, '🔍 USE TOKEN', {
+            fontSize: '13px', color: '#ffffff'
+        }).setOrigin(0.5);
+        this.revealButton.setVisible(false);
+        this.revealButtonText.setVisible(false);
+
+        this.revealButton.on('pointerdown', () => {
+            const mainScene = this.scene.get('MainGameScene');
+            if (!mainScene || !mainScene.boardController) return;
+            const bc = mainScene.boardController;
+            const gm = mainScene.gameManager;
+            if (!gm.canSpendRevealToken()) return;
+            // Reveal the first hidden card
+            const hidden = bc.getHiddenCards();
+            if (hidden.length > 0) {
+                bc.useRevealToken(hidden[0]);
+            }
+        });
+
+        this.revealButton.on('pointerover', () => {
+            this.revealButton.fillColor = 0xbbaa00;
+        });
+        this.revealButton.on('pointerout', () => {
+            this.revealButton.fillColor = 0x886600;
+        });
+
         // Escape Indicator
         this.escapeIndicator = this.add.text(400, 50, 'ESCAPE AVAILABLE!', {
             fontSize: '24px',
@@ -66,6 +101,10 @@ export default class UIScene extends Phaser.Scene {
         this.startButton.on('pointerdown', () => {
             const mainScene = this.scene.get('MainGameScene');
             if (mainScene && mainScene.gameManager) {
+                // Clean up planning UI (hide Product Backlog panel + commitment zone overlay)
+                if (mainScene.boardController) {
+                    mainScene.boardController.startSprint();
+                }
                 mainScene.gameManager.startSprint();
                 this.startButton.setVisible(false);
                 this.startText.setVisible(false);
@@ -105,9 +144,134 @@ export default class UIScene extends Phaser.Scene {
                 this.hideSprintReview();
             }
         });
+
+        // ── Incident Panel ──────────────────────────────────────────────────────
+        // Sits in the top-right corner, shows active incidents with severity + timer
+        const incidentPanelX = this.scale.width - 320;
+        const incidentPanelY = 60;
+
+        this.incidentPanelBg = this.add.rectangle(incidentPanelX, incidentPanelY, 300, 100, 0x330000, 0.85)
+            .setOrigin(0, 0).setVisible(false);
+
+        this.incidentPanelTitle = this.add.text(incidentPanelX + 10, incidentPanelY + 6, '🚨 INCIDENTS', {
+            fontSize: '13px', color: '#ff4444', fontStyle: 'bold'
+        }).setVisible(false);
+
+        this.incidentLines = [];
+        for (let i = 0; i < 3; i++) {
+            this.incidentLines.push(this.add.text(incidentPanelX + 10, incidentPanelY + 24 + i * 22, '', {
+                fontSize: '12px', color: '#ffaaaa'
+            }).setVisible(false));
+        }
+
+        // Resolve button — resolves the most severe active incident
+        this.resolveButton = this.add.rectangle(incidentPanelX + 150, incidentPanelY + 80, 130, 24, 0x661111)
+            .setOrigin(0.5).setInteractive().setVisible(false);
+        this.resolveButtonText = this.add.text(incidentPanelX + 150, incidentPanelY + 80, '✅ RESOLVE', {
+            fontSize: '12px', color: '#ffffff'
+        }).setOrigin(0.5).setVisible(false);
+
+        this.resolveButton.on('pointerdown', () => {
+            const mainScene = this.scene.get('MainGameScene');
+            if (!mainScene) return;
+            const im = mainScene.incidentManager;
+            if (!im) return;
+            const worst = im.activeIncidents.sort((a, b) => b.severity - a.severity)[0];
+            if (worst) im.resolveIncident(worst);
+        });
+
+        this.resolveButton.on('pointerover', () => { this.resolveButton.fillColor = 0xaa2222; });
+        this.resolveButton.on('pointerout', () => { this.resolveButton.fillColor = 0x661111; });
+
+        // ── Stakeholder Demand Panel ────────────────────────────────────────────
+        const demandPanelX = this.scale.width - 320;
+        const demandPanelY = 170;
+
+        this.demandPanelBg = this.add.rectangle(demandPanelX, demandPanelY, 300, 60, 0x1a1a44, 0.85)
+            .setOrigin(0, 0).setVisible(false);
+
+        this.demandText = this.add.text(demandPanelX + 10, demandPanelY + 8,
+            '📋 Product Owner: 0 demands', {
+                fontSize: '12px', color: '#aaaaff', wordWrap: { width: 280 }
+            }).setVisible(false);
+
+        this.demandPressureText = this.add.text(demandPanelX + 10, demandPanelY + 30,
+            'Pressure: 0', { fontSize: '11px', color: '#8888ff' }
+        ).setVisible(false);
+
+        // ── Onboarding indicator ────────────────────────────────────────────────
+        this.onboardingText = this.add.text(20, this.scale.height - 130, '', {
+            fontSize: '12px', color: '#88ffaa', fontStyle: 'italic'
+        }).setVisible(false);
     }
 
-    updateUI(gameManager) {
+    updateUI(gameManager, extra = {}) {
+        const { incidents = [], stakeholder = null, onboardingDevs = [] } = extra;
+
+        // ── Incident panel ──────────────────────────────────────────────────────
+        if (incidents.length > 0) {
+            this.incidentPanelBg.setVisible(true);
+            this.incidentPanelTitle.setVisible(true);
+            this.resolveButton.setVisible(true);
+            this.resolveButtonText.setVisible(true);
+
+            const sevLabel = { 1: 'SEV-3', 2: 'SEV-2', 3: 'SEV-1' };
+            const sevColor = { 1: '#ffaaaa', 2: '#ff6666', 3: '#ff0000' };
+
+            incidents.slice(0, 3).forEach((inc, i) => {
+                const line = this.incidentLines[i];
+                const secs = Math.ceil((inc.timeRemaining || 0) / 1000);
+                line.setText(`${sevLabel[inc.severity] || 'SEV-?'} — ${secs}s remaining`);
+                line.setColor(sevColor[inc.severity] || '#ffaaaa');
+                line.setVisible(true);
+            });
+            // Hide unused lines
+            for (let i = incidents.length; i < 3; i++) {
+                this.incidentLines[i].setVisible(false);
+            }
+        } else {
+            this.incidentPanelBg.setVisible(false);
+            this.incidentPanelTitle.setVisible(false);
+            this.resolveButton.setVisible(false);
+            this.resolveButtonText.setVisible(false);
+            this.incidentLines.forEach(l => l.setVisible(false));
+        }
+
+        // ── Stakeholder demand panel ────────────────────────────────────────────
+        if (stakeholder) {
+            this.demandPanelBg.setVisible(true);
+            this.demandText.setVisible(true);
+            this.demandPressureText.setVisible(true);
+            this.demandText.setText(`📋 Product Owner: ${stakeholder.demandCount} demand(s)`);
+            const pressureColor = stakeholder.pressureLevel > 50 ? '#ff6666' : '#8888ff';
+            this.demandPressureText.setText(`Pressure: ${stakeholder.pressureLevel}`);
+            this.demandPressureText.setColor(pressureColor);
+        } else {
+            this.demandPanelBg.setVisible(false);
+            this.demandText.setVisible(false);
+            this.demandPressureText.setVisible(false);
+        }
+
+        // ── Onboarding indicator ────────────────────────────────────────────────
+        if (onboardingDevs.length > 0) {
+            const names = onboardingDevs.map(d => d.name || 'New Hire').join(', ');
+            this.onboardingText.setText(`🎓 Onboarding: ${names}`);
+            this.onboardingText.setVisible(true);
+        } else {
+            this.onboardingText.setVisible(false);
+        }
+
+        // Update State (stateText shows gameManager.state)
+        if (this.stateText) this.stateText.setText(gameManager.state || 'PLANNING');
+
+        // Show/hide start button
+        if (gameManager.state === 'PLANNING') {
+            this.startButton.setVisible(true);
+            this.startText.setVisible(true);
+        } else {
+            this.startButton.setVisible(false);
+            this.startText.setVisible(false);
+        }
         // Update Budget
         this.budgetText.setText(`Budget: $${gameManager.budget}`);
         
@@ -144,6 +308,19 @@ export default class UIScene extends Phaser.Scene {
             this.reputationText.setColor('#00ff00'); // Green - good
         }
 
+        // Update Reveal Tokens
+        const tokens = gameManager.revealTokens || 0;
+        this.revealTokenText.setText(`🔍 Reveal: ${tokens}`);
+        if (tokens > 0) {
+            this.revealTokenText.setColor('#ffdd88');
+            this.revealButton.setVisible(true);
+            this.revealButtonText.setVisible(true);
+        } else {
+            this.revealTokenText.setColor('#888888');
+            this.revealButton.setVisible(false);
+            this.revealButtonText.setVisible(false);
+        }
+
         // Show escape indicator
         if (gameManager.canEscape && gameManager.canEscape()) {
             this.escapeIndicator.setVisible(true);
@@ -151,28 +328,6 @@ export default class UIScene extends Phaser.Scene {
             this.escapeIndicator.setVisible(false);
         }
         
-        // Update State
-        this.stateText.setText(gameManager.state);
-        
-        // Show/hide start button
-        if (gameManager.state === 'PLANNING') {
-            this.startButton.setVisible(true);
-            this.startText.setVisible(true);
-        } else {
-            this.startButton.setVisible(false);
-            this.startText.setVisible(false);
-        }
-        
-        // Show review overlay if in REVIEW state
-        if (gameManager.state === 'REVIEW') {
-            this.showSprintReview({
-                completed: 5,
-                committed: 3,
-                budgetEarned: 10000,
-                operatingCost: 5000,
-                netBudget: 5000
-            });
-        }
     }
     
     showSprintReview(result) {

@@ -13,6 +13,8 @@ export default class GameManager {
         this.reputation = 0;
         this.maxReputation = 1000;
         this.escapeThreshold = 500;
+        // Reveal tokens — earned by completing tickets, spent to reveal hidden cards
+        this.revealTokens = 0;
     }
 
     startSprint() {
@@ -25,6 +27,7 @@ export default class GameManager {
         if (this.state === 'REVIEW') {
             this.state = 'PLANNING';
             this.sprintTime = 60;
+            this.revealTokens = 0;
         }
     }
 
@@ -68,11 +71,25 @@ export default class GameManager {
         const isBug = ticket && ticket.constructor && ticket.constructor.name === 'BugCard';
         if (!isBug) {
             this.budget += this.ticketReward;
-        }
-        this.morale = Math.min(100, this.morale + 5);
-        if (isBug) {
+            // Award 1 reveal token for completing a regular ticket
+            this.revealTokens += 1;
+        } else {
+            // Award 2 reveal tokens for resolving a bug — better visibility earned
+            this.revealTokens += 2;
             this.techHealth = Math.min(100, this.techHealth + 10);
         }
+        this.morale = Math.min(100, this.morale + 5);
+    }
+
+    // ── Reveal token API ───────────────────────────────────────────────────────
+
+    canSpendRevealToken() {
+        return this.revealTokens > 0;
+    }
+
+    spendRevealToken() {
+        if (this.revealTokens <= 0) return;
+        this.revealTokens -= 1;
     }
 
     handleDevBreakdown() {

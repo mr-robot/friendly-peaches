@@ -1,17 +1,45 @@
 import BugCard from '../entities/BugCard.js';
 import TechDebtCard from '../entities/TechDebtCard.js';
+import FogOfWarManager from '../core/FogOfWarManager.js';
 
 export default class BoardController {
     constructor(scene) {
         this.scene = scene;
-        this.columns = ['Icebox', 'Backlog', 'In Progress', 'Review', 'Done'];
+        this.columns = ['Sprint Commitment', 'In Progress', 'Review', 'Done'];
         this.columnZones = {};
         this.tickets = [];
         this.devs = [];
         this.bugs = [];
-        this.iceboxTickets = [];
+        this.productBacklogTickets = [];
+        this.productBacklogPanel = null;
         this.techDebtCards = [];
         this.serviceCards = [];
+        // Simple card store for addCard/moveCard/removeCard/getCardsInColumn helpers
+        this._cards = [];
+        // Fog of War
+        this.fogOfWar = new FogOfWarManager();
+    }
+
+    // ── Simple card store helpers (used by tests and step 2 logic) ─────────────
+    addCard(card) {
+        this._cards.push(card);
+    }
+
+    removeCard(id) {
+        this._cards = this._cards.filter(c => c.id !== id);
+    }
+
+    moveCard(id, targetColumn) {
+        const card = this._cards.find(c => c.id === id);
+        if (card) card.column = targetColumn;
+    }
+
+    getCardsInColumn(columnName) {
+        return this._cards.filter(c => c.column === columnName);
+    }
+
+    getTotalDifficulty(columnName) {
+        return this.getCardsInColumn(columnName).reduce((sum, c) => sum + (c.difficulty || 0), 0);
     }
 
     logInteraction(event, payload = {}) {
@@ -68,28 +96,40 @@ export default class BoardController {
             };
         });
         
-        // Create Sprint Commitment Zone
-        const commitmentWidth = 200;
-        const commitmentX = this.scene.scale.width - commitmentWidth - 20;
+        // Sprint Commitment Zone overlay (visible during PLANNING only)
+        // Note: the Sprint Commitment *column* is the first main column; this overlay
+        // is a visual indicator that sits on top of it and is hidden when ACTIVE begins.
+        const scColumn = this.columnZones['Sprint Commitment'];
+        const commitmentX = scColumn ? scColumn.x : 0;
         const commitmentY = 50;
-        const commitmentHeight = 150;
+        const commitmentWidth = scColumn ? scColumn.width : this.calculateColumnWidth();
+        const commitmentHeight = 40; // just the header highlight
+
+        const commitmentLabel = this.scene.add.text(
+            commitmentX + commitmentWidth / 2,
+            commitmentY + 5,
+            '📋 SPRINT COMMITMENT — drag tickets here',
+            { color: '#aaffaa', fontSize: '13px', fontStyle: 'italic' }
+        ).setOrigin(0.5, 0);
+
+        const commitmentBg = this.scene.add.rectangle(
+            commitmentX, commitmentY + 40, commitmentWidth, commitmentHeight, 0x2d4a2b, 0.4
+        ).setOrigin(0, 0);
+
+        const commitmentZoneObj = this.scene.add.zone(
+            commitmentX, commitmentY, commitmentWidth, this.scene.scale.height - 150
+        ).setOrigin(0, 0).setDropZone();
+        commitmentZoneObj.columnName = 'Sprint Commitment';
 
         this.sprintCommitmentZone = {
-            bg: this.scene.add.rectangle(commitmentX, commitmentY, commitmentWidth, commitmentHeight, 0x2d4a2b).setOrigin(0, 0),
-            zone: this.scene.add.zone(commitmentX, commitmentY, commitmentWidth, commitmentHeight).setOrigin(0, 0).setDropZone(),
+            bg: commitmentBg,
+            label: commitmentLabel,
+            zone: commitmentZoneObj,
             x: commitmentX,
             y: commitmentY,
             width: commitmentWidth,
             height: commitmentHeight
         };
-
-        this.scene.add.text(commitmentX + 10, commitmentY + 10, 'SPRINT\nCOMMITMENT', {
-            color: '#ffffff',
-            fontSize: '14px',
-            fontStyle: 'bold'
-        });
-
-        this.sprintCommitmentZone.zone.columnName = 'Sprint Commitment';
 
         // Create Phase Indicator
         this.phaseIndicator = this.scene.add.text(
@@ -106,28 +146,26 @@ export default class BoardController {
         ).setOrigin(0.5, 0);
     }
 
-    showIcebox() {
-        const iceboxColumn = this.columnZones['Icebox'];
-        if (iceboxColumn) {
-            iceboxColumn.bg.setVisible(true);
-            iceboxColumn.headerBg.setVisible(true);
-            iceboxColumn.zone.setActive(true);
-        }
-        this.iceboxTickets.forEach(ticket => ticket.setVisible(true));
+    // ── Commitment Zone visibility ─────────────────────────────────────────────
+
+    showCommitmentZone() {
+        if (!this.sprintCommitmentZone) return;
+        this.sprintCommitmentZone.bg.setVisible(true);
+        this.sprintCommitmentZone.label.setVisible(true);
+        this.sprintCommitmentZone.zone.setActive(true);
     }
 
-    hideIcebox() {
-        const iceboxColumn = this.columnZones['Icebox'];
-        if (iceboxColumn) {
-            iceboxColumn.bg.setVisible(false);
-            iceboxColumn.headerBg.setVisible(false);
-            iceboxColumn.zone.setActive(false);
-        }
-        this.iceboxTickets.forEach(ticket => ticket.setVisible(false));
+    hideCommitmentZone() {
+        if (!this.sprintCommitmentZone) return;
+        this.sprintCommitmentZone.bg.setVisible(false);
+        this.sprintCommitmentZone.label.setVisible(false);
+        this.sprintCommitmentZone.zone.setActive(false);
     }
 
-    populateIcebox(ticketCount) {
-        this.iceboxTickets = [];
+    // ── Product Backlog panel ──────────────────────────────────────────────────
+
+    populateProductBacklog(ticketCount) {
+        this.productBacklogTickets = [];
 
         const ticketTitles = [
             'Fix login bug', 'Add user profile', 'Optimize database queries',
@@ -135,39 +173,153 @@ export default class BoardController {
             'Add dark mode', 'Improve mobile responsiveness', 'Fix security vulnerability',
             'Add API rate limiting'
         ];
-
         const requirements = ['Frontend', 'Backend', 'DevOps', 'QA'];
-        const iceboxColumn = this.columnZones['Icebox'];
 
-        if (!iceboxColumn) return;
+        // Panel sits below the main board as a slide-in strip
+        const panelX = 0;
+        const panelY = this.scene.scale.height - 250;
+        const panelWidth = this.scene.scale.width;
+        const panelHeight = 200;
+
+        // Create the panel background and label lazily (only once)
+        if (!this.productBacklogPanel) {
+            const panelBg = this.scene.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x1a1a3e, 0.9).setOrigin(0, 0);
+            const panelLabel = this.scene.add.text(panelX + 20, panelY + 8, '📦 PRODUCT BACKLOG — drag tickets into Sprint Commitment', {
+                color: '#aaaaff', fontSize: '14px', fontStyle: 'bold'
+            });
+            this.productBacklogPanel = { bg: panelBg, label: panelLabel, x: panelX, y: panelY, width: panelWidth, height: panelHeight };
+        }
+
+        const cardSpacing = Math.min(180, panelWidth / Math.max(ticketCount, 1));
 
         for (let i = 0; i < ticketCount; i++) {
             const title = ticketTitles[i % ticketTitles.length];
             const requirement = requirements[i % requirements.length];
-
-            const colWidth = iceboxColumn.width;
-            const x = iceboxColumn.x + 20 + (i % 2) * (colWidth / 2 - 40);
-            const y = 120 + Math.floor(i / 2) * 100;
+            const x = panelX + 100 + i * cardSpacing;
+            const y = panelY + 80;
 
             try {
                 const TicketCardModule = eval('require("../entities/TicketCard.js")');
                 const TicketCard = TicketCardModule.default;
                 const ticket = new TicketCard(this.scene, x, y, title, requirement);
-                ticket.currentColumn = 'Icebox';
+                ticket.currentColumn = 'Product Backlog';
                 this.scene.add.existing(ticket);
-                this.iceboxTickets.push(ticket);
+                this.productBacklogTickets.push(ticket);
             } catch (e) {
+                // In test/mock environments, create a plain object
                 const mockTicket = {
                     constructor: { name: 'TicketCard' },
                     x, y, title, requirement,
-                    currentColumn: 'Icebox',
-                    setVisible: () => {}
+                    currentColumn: 'Product Backlog',
+                    stackedDevs: [],
+                    setVisible: function() {},
+                    input: null
                 };
-                this.iceboxTickets.push(mockTicket);
-                if (this.scene.add.existing) {
+                this.productBacklogTickets.push(mockTicket);
+                if (this.scene.add && this.scene.add.existing) {
                     this.scene.add.existing(mockTicket);
                 }
             }
+        }
+    }
+
+    showProductBacklog() {
+        if (!this.productBacklogPanel) return;
+        this.productBacklogPanel.bg.setVisible(true);
+        this.productBacklogPanel.label.setVisible(true);
+        this.productBacklogTickets.forEach(t => t.setVisible(true));
+    }
+
+    hideProductBacklog() {
+        if (!this.productBacklogPanel) return;
+        this.productBacklogPanel.bg.setVisible(false);
+        this.productBacklogPanel.label.setVisible(false);
+        this.productBacklogTickets.forEach(t => t.setVisible(false));
+    }
+
+    // ── Sprint start ───────────────────────────────────────────────────────────
+
+    startSprint() {
+        // Hide planning UI
+        this.hideProductBacklog();
+        this.hideCommitmentZone();
+
+        // Remove any tickets still sitting in the Product Backlog (uncommitted)
+        this.productBacklogTickets
+            .filter(t => t.currentColumn === 'Product Backlog')
+            .forEach(t => {
+                if (typeof t.destroy === 'function') t.destroy();
+            });
+        // Clear the pool entries that weren't committed
+        this.productBacklogTickets = this.productBacklogTickets.filter(
+            t => t.currentColumn !== 'Product Backlog'
+        );
+    }
+
+    // ── Fog of War integration ─────────────────────────────────────────────────
+
+    /**
+     * Spawn a bug as hidden — registers it with FogOfWarManager,
+     * applies dim visual, and adds it to the bugs array.
+     */
+    spawnBugHidden(bug) {
+        bug.isHidden = true;
+        this.fogOfWar.registerHidden(bug);
+        this.fogOfWar.applyVisualState(bug);
+        if (!this.bugs.includes(bug)) {
+            this.bugs.push(bug);
+        }
+    }
+
+    /**
+     * Unconditionally reveal a bug (e.g. from an incident firing).
+     */
+    revealBug(bug) {
+        this.fogOfWar.reveal(bug);
+    }
+
+    /**
+     * Spend one reveal token from GameManager to reveal a specific card.
+     * Does nothing if no tokens available.
+     */
+    useRevealToken(card) {
+        const gm = this.scene.gameManager;
+        if (!gm || !gm.canSpendRevealToken()) return;
+        if (!card.isHidden) return;
+        gm.spendRevealToken();
+        this.fogOfWar.reveal(card);
+    }
+
+    /**
+     * Return all currently hidden cards.
+     */
+    getHiddenCards() {
+        return this.fogOfWar.hiddenCards;
+    }
+
+    /**
+     * Tick fog escalation — call from the main update loop during ACTIVE state.
+     */
+    tickFog(deltaMs) {
+        this.fogOfWar.tickEscalation(deltaMs);
+    }
+
+    // ── State transition handler (called by MainGameScene) ────────────────────
+
+    handleStateTransition(newState) {
+        switch (newState) {
+            case 'PLANNING':
+                this.showProductBacklog();
+                this.showCommitmentZone();
+                break;
+            case 'ACTIVE':
+                this.hideProductBacklog();
+                this.hideCommitmentZone();
+                break;
+            case 'REVIEW':
+                this.hideProductBacklog();
+                this.hideCommitmentZone();
+                break;
         }
     }
 
@@ -288,11 +440,11 @@ export default class BoardController {
                 candidates: ticketDiagnostics
             });
 
-            // Check overlap with tickets, but exclude tickets in 'Done' and Icebox/Backlog
+            // Check overlap with tickets, but exclude tickets in 'Done' and Sprint Commitment
             const overlappingTicket = this.tickets.find(t => 
                 t.currentColumn !== 'Done' && 
-                t.currentColumn !== 'Icebox' && 
-                t.currentColumn !== 'Backlog' &&
+                t.currentColumn !== 'Sprint Commitment' &&
+                t.currentColumn !== 'Product Backlog' &&
                 Math.abs(t.x - card.x) < 50 && Math.abs(t.y - card.y) < 75
             );
             
@@ -356,49 +508,32 @@ export default class BoardController {
                     return;
                 }
 
-                // Rule 2: Planning phase movement (Icebox <-> Backlog)
+                // Rule 2: Planning phase movement (Product Backlog <-> Sprint Commitment)
                 if (isPlanning) {
-                    if ((card.currentColumn === 'Icebox' && dropZone.columnName === 'Backlog') ||
-                        (card.currentColumn === 'Backlog' && dropZone.columnName === 'Icebox')) {
-                        
-                        card.currentColumn = dropZone.columnName;
-                        this.updateTicketArrays(card);
-                        return;
-                    }
-                }
-
-                // Rule 3: Active phase movement (Backlog -> In Progress only)
-                if (isActive) {
-                    if (card.currentColumn === 'Backlog' && dropZone.columnName === 'In Progress') {
-                        card.currentColumn = dropZone.columnName;
-                        this.updateTicketArrays(card);
-                        return;
-                    }
-                }
-
-                // Rule 4: Sprint Commitment zone (PLANNING phase only)
-                if (dropZone.columnName === 'Sprint Commitment') {
-                    if (isPlanning) {
+                    if (dropZone.columnName === 'Sprint Commitment' && 
+                        (card.currentColumn === 'Product Backlog' || card.currentColumn === 'Sprint Commitment')) {
                         card.currentColumn = 'Sprint Commitment';
                         this.updateTicketArrays(card);
-                        
                         // Track commitment in GameManager
                         if (gameManager && typeof gameManager.addSprintCommitment === 'function') {
                             gameManager.addSprintCommitment(card);
                         }
-                        
-                        // Position card in commitment zone
-                        card.x = this.sprintCommitmentZone.x + this.sprintCommitmentZone.width / 2;
-                        card.y = this.sprintCommitmentZone.y + 50 + (gameManager.sprintCommitments.length * 30);
                         return;
                     }
-                    
-                    // Snap back if not in planning phase
-                    if (card.input) {
-                        card.x = card.input.dragStartX;
-                        card.y = card.input.dragStartY;
+                    if (dropZone.columnName === 'Product Backlog' && card.currentColumn === 'Sprint Commitment') {
+                        card.currentColumn = 'Product Backlog';
+                        this.updateTicketArrays(card);
+                        return;
                     }
-                    return;
+                }
+
+                // Rule 3: Active phase movement (Sprint Commitment -> In Progress only)
+                if (isActive) {
+                    if (card.currentColumn === 'Sprint Commitment' && dropZone.columnName === 'In Progress') {
+                        card.currentColumn = dropZone.columnName;
+                        this.updateTicketArrays(card);
+                        return;
+                    }
                 }
 
                 // If no rules matched, snap back
@@ -417,26 +552,20 @@ export default class BoardController {
     }
 
     updateTicketArrays(card) {
-        if (card.currentColumn === 'Icebox') {
+        if (card.currentColumn === 'Product Backlog') {
             // Remove from main tickets array if it's there
             const mainIndex = this.tickets.indexOf(card);
-            if (mainIndex > -1) {
-                this.tickets.splice(mainIndex, 1);
-            }
-            
-            // Add to icebox tickets if not already there
-            if (this.iceboxTickets && !this.iceboxTickets.includes(card)) {
-                this.iceboxTickets.push(card);
+            if (mainIndex > -1) this.tickets.splice(mainIndex, 1);
+
+            // Add to product backlog pool if not already there
+            if (!this.productBacklogTickets.includes(card)) {
+                this.productBacklogTickets.push(card);
             }
         } else {
-            // Remove from icebox tickets if it's there
-            if (this.iceboxTickets) {
-                const iceboxIndex = this.iceboxTickets.indexOf(card);
-                if (iceboxIndex > -1) {
-                    this.iceboxTickets.splice(iceboxIndex, 1);
-                }
-            }
-            
+            // Remove from product backlog pool if it's there
+            const poolIndex = this.productBacklogTickets.indexOf(card);
+            if (poolIndex > -1) this.productBacklogTickets.splice(poolIndex, 1);
+
             // Add to main tickets array if not already there
             if (!this.tickets.includes(card)) {
                 this.tickets.push(card);
@@ -511,9 +640,9 @@ export default class BoardController {
             return;
         }
 
-        const backlogColumn = this.columnZones['Backlog'];
-        const bugX = backlogColumn ? backlogColumn.x + (backlogColumn.width / 2) : 100;
-        const existingBacklogCards = this.tickets.filter(existingTicket => existingTicket.currentColumn === 'Backlog').length;
+        const commitmentColumn = this.columnZones['Sprint Commitment'];
+        const bugX = commitmentColumn ? commitmentColumn.x + (commitmentColumn.width / 2) : 100;
+        const existingBacklogCards = this.tickets.filter(existingTicket => existingTicket.currentColumn === 'Sprint Commitment').length;
         const bugY = 120 + (existingBacklogCards * 100);
         const bug = new BugCard(
             this.scene,

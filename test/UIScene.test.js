@@ -41,27 +41,45 @@ describe('UIScene', () => {
         uiScene.create();
     });
 
+    function mockGM(overrides = {}) {
+        return {
+            budget: 10000, morale: 100, sprintTime: 60,
+            techHealth: 100, state: 'PLANNING',
+            reputation: 350, revealTokens: 0,
+            ...overrides
+        };
+    }
+
     describe('Reputation UI', () => {
         it('should display reputation with color coding', () => {
-            const mockGameManager = { reputation: 350, budget: 10000, morale: 100, sprintTime: 60, techHealth: 100, state: 'PLANNING' };
-            uiScene.updateUI(mockGameManager);
-            
+            uiScene.updateUI(mockGM({ reputation: 350 }));
             expect(uiScene.reputationText.setText).toHaveBeenCalledWith('Reputation: 350');
-            expect(uiScene.reputationText.setColor).toHaveBeenLastCalledWith('#00ff00'); // Green for good reputation
+            expect(uiScene.reputationText.setColor).toHaveBeenCalledWith('#00ff00'); // Green for good reputation
         });
 
         it('should show red text for low reputation', () => {
-            const mockGameManager = { reputation: 50, budget: 10000, morale: 100, sprintTime: 60, techHealth: 100, state: 'PLANNING' };
-            uiScene.updateUI(mockGameManager);
-            
+            uiScene.updateUI(mockGM({ reputation: 50 }));
             expect(uiScene.reputationText.setColor).toHaveBeenCalledWith('#ff0000'); // Red for low reputation
         });
 
         it('should show escape availability at 500 reputation', () => {
-            const mockGameManager = { reputation: 500, budget: 10000, morale: 100, sprintTime: 60, techHealth: 100, state: 'PLANNING', canEscape: vi.fn().mockReturnValue(true) };
-            uiScene.updateUI(mockGameManager);
-            
+            uiScene.updateUI(mockGM({ reputation: 500, canEscape: vi.fn().mockReturnValue(true) }));
             expect(uiScene.escapeIndicator.setVisible).toHaveBeenCalledWith(true);
+        });
+
+        it('should show reveal token count', () => {
+            uiScene.updateUI(mockGM({ revealTokens: 3 }));
+            expect(uiScene.revealTokenText.setText).toHaveBeenCalledWith('🔍 Reveal: 3');
+        });
+
+        it('should show USE TOKEN button when tokens > 0', () => {
+            uiScene.updateUI(mockGM({ revealTokens: 2 }));
+            expect(uiScene.revealButton.setVisible).toHaveBeenCalledWith(true);
+        });
+
+        it('should hide USE TOKEN button when tokens = 0', () => {
+            uiScene.updateUI(mockGM({ revealTokens: 0 }));
+            expect(uiScene.revealButton.setVisible).toHaveBeenCalledWith(false);
         });
     });
 });
