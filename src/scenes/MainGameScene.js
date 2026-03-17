@@ -166,6 +166,14 @@ export default class MainGameScene extends Phaser.Scene {
             if (t.currentColumn === 'Done' && !t.rewarded) {
                 t.rewarded = true;
                 this.gameManager.completeTicket(t);
+                
+                // If it's a bug, resolve associated incidents
+                if (t.type === 'BugCard') {
+                    const relatedIncident = this.incidentManager.activeIncidents.find(i => i.sourceBug === t);
+                    if (relatedIncident) {
+                        this.incidentManager.resolveIncident(relatedIncident);
+                    }
+                }
             }
         });
 
