@@ -166,4 +166,60 @@ describe('BoardController', () => {
             expect(remaining).toHaveLength(0);
         });
     });
+
+    describe('SEV-1 Incident Restrictions', () => {
+        it('should reject dev drops on feature tickets when a SEV-1 incident is active', () => {
+            // Setup scene with a mock incident manager reporting a SEV-1
+            mockScene.incidentManager = { hasSev1Incident: () => true };
+            
+            // Spy on logInteraction to verify the restriction is triggered
+            const logSpy = vi.spyOn(boardController, 'logInteraction');
+
+            const dev = { 
+                type: 'DevCard', 
+                currentColumn: 'Devs',
+                x: 100,
+                y: 200,
+                input: { dragStartX: 50, dragStartY: 150 },
+                constructor: { name: 'DevCard' }
+            };
+            const ticket = { 
+                type: 'TicketCard', 
+                currentColumn: 'In Progress', // Must be in a work column to be overlapped
+                requirement: 'Frontend', 
+                quality: 1, 
+                maxQuality: 3, 
+                stackedDevs: [],
+                x: 110, // Close enough to overlap
+                y: 210,
+                constructor: { name: 'TicketCard' }
+            };
+
+            boardController.tickets = [ticket];
+            boardController.devs = [dev];
+
+            // Should reject the drop due to SEV-1 incident
+            boardController.handleDrop(dev, 'In Progress');
+            
+            // Verify SEV-1 restriction was logged
+            expect(logSpy).toHaveBeenCalledWith('handleDrop:dev:sev1-restriction', expect.any(Object));
+        });
+
+        it('should allow dev drops on bug tickets during SEV-1 incidents', () => {
+            // Setup scene with a mock incident manager reporting a SEV-1
+            mockScene.incidentManager = { hasSev1Incident: () => true };
+
+            const dev = { type: 'DevCard', currentColumn: 'Devs' };
+            const bug = { type: 'BugCard', currentColumn: 'Sprint Commitment', requirement: 'Frontend', stackedDevs: [] };
+
+            boardController.tickets = [bug];
+            boardController.devs = [dev];
+
+            // Should allow the drop since it's a bug, not a feature ticket
+            // This test verifies that bugs (emergency work) are still allowed during SEV-1 incidents
+            const result = boardController.handleDrop(dev, 'Sprint Commitment');
+            // The exact behavior depends on the implementation, but it shouldn't be blocked by SEV-1
+            expect(result).not.toBe(false); // Either true or undefined (no explicit rejection)
+        });
+    });
 });

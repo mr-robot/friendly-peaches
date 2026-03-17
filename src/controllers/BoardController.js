@@ -463,6 +463,21 @@ export default class BoardController {
                         return;
                     }
                 }
+
+                // Check SEV-1 incident restriction: prevent feature work during critical incidents
+                if (this.scene.incidentManager && this.scene.incidentManager.hasSev1Incident()) {
+                    // Allow stacking on bugs during SEV-1, but not on regular tickets
+                    if (overlappingTicket.constructor.name !== 'BugCard') {
+                        // Snap back to original position
+                        card.x = card.input.dragStartX;
+                        card.y = card.input.dragStartY;
+                        this.logInteraction('handleDrop:dev:sev1-restriction', {
+                            ticketType: overlappingTicket.constructor.name,
+                            reason: 'SEV-1 incident - only emergency bug work allowed'
+                        });
+                        return;
+                    }
+                }
                 
                 this.logInteraction('handleDrop:dev:match', {
                     ticketTitle: overlappingTicket.title || null,
