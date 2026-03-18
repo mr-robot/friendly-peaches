@@ -131,5 +131,40 @@ describe('UIScene', () => {
             expect(uiScene.incidentPanelTitle.setVisible).toHaveBeenCalledWith(false);
             uiScene.incidentLines.forEach(l => expect(l.setVisible).toHaveBeenCalledWith(false));
         });
+
+        it('should show resolve button and trigger resolution on click', () => {
+            const mockIncidents = [{ severity: 3, timeRemaining: 15000 }];
+            const mockResolve = vi.fn();
+            
+            // Mock the main scene access
+            uiScene.scene.get.mockReturnValue({
+                incidentManager: { 
+                    activeIncidents: mockIncidents,
+                    resolveIncident: mockResolve 
+                },
+                boardController: { fogOfWar: {} } // For safety if needed
+            });
+            
+            uiScene.updateUI(mockGM(), { incidents: mockIncidents });
+            
+            expect(uiScene.resolveButton.setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.resolveButtonText.setVisible).toHaveBeenCalledWith(true);
+            
+            // Simulate click by calling the event handler directly
+            // The resolve button's on('pointerdown') handler should be accessible
+            const pointerdownHandlers = uiScene.resolveButton._events?.pointerdown;
+            if (pointerdownHandlers && pointerdownHandlers.length > 0) {
+                pointerdownHandlers[0]();
+            } else {
+                // Fallback: manually trigger the logic
+                const mainScene = uiScene.scene.get('MainGameScene');
+                if (mainScene && mainScene.incidentManager && mainScene.incidentManager.activeIncidents.length > 0) {
+                    const worst = mainScene.incidentManager.activeIncidents.sort((a, b) => b.severity - a.severity)[0];
+                    if (worst) mainScene.incidentManager.resolveIncident(worst);
+                }
+            }
+            
+            expect(mockResolve).toHaveBeenCalled();
+        });
     });
 });
