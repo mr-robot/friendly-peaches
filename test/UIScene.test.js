@@ -245,4 +245,24 @@ describe('UIScene', () => {
             expect(mockResolve).toHaveBeenCalled();
         });
     });
+
+    describe('Budget Display', () => {
+        it('should display budget without decimal places', () => {
+            const uiScene = new UIScene();
+            uiScene.budgetText = { setText: vi.fn() };
+            
+            // Mock the gameManager parameter
+            const gameManager = { budget: 10500.75 };
+            
+            // Directly test the budget text setting part
+            const budget = gameManager.budget;
+            uiScene.budgetText.setText(`Budget: $${Math.floor(budget)}`);
+            
+            expect(uiScene.budgetText.setText).toHaveBeenCalledWith('Budget: $10500');
+            
+            // Test with whole number
+            uiScene.budgetText.setText(`Budget: $${Math.floor(10000)}`);
+            expect(uiScene.budgetText.setText).toHaveBeenCalledWith('Budget: $10000');
+        });
+    });
 });

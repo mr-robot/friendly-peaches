@@ -329,7 +329,7 @@ export default class UIScene extends Phaser.Scene {
             this.startText.setVisible(false);
         }
         // Update Budget
-        this.budgetText.setText(`Budget: $${gameManager.budget}`);
+        this.budgetText.setText(`Budget: $${Math.floor(gameManager.budget)}`);
         
         // Update Morale
         this.moraleText.setText(`Morale: ${gameManager.morale}%`);
