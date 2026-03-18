@@ -109,6 +109,42 @@ describe('UIScene', () => {
         });
     });
 
+    describe('Stakeholder UI', () => {
+        it('should display stakeholder demands when present', () => {
+            const mockStakeholder = {
+                name: 'Product Owner',
+                demandCount: 2,
+                pressureLevel: 60
+            };
+            
+            uiScene.updateUI(mockGM(), { stakeholder: mockStakeholder });
+            
+            expect(uiScene.demandPanelBg.setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.demandText.setText).toHaveBeenCalledWith('📋 Product Owner: 2 demand(s)');
+            expect(uiScene.demandPressureText.setText).toHaveBeenCalledWith('Pressure: 60');
+        });
+
+        it('should hide stakeholder panel when no stakeholder', () => {
+            uiScene.updateUI(mockGM(), { stakeholder: null });
+            
+            expect(uiScene.demandPanelBg.setVisible).toHaveBeenCalledWith(false);
+            expect(uiScene.demandText.setVisible).toHaveBeenCalledWith(false);
+            expect(uiScene.demandPressureText.setVisible).toHaveBeenCalledWith(false);
+        });
+
+        it('should color code pressure text based on level', () => {
+            const highPressureStakeholder = {
+                name: 'Product Owner',
+                demandCount: 1,
+                pressureLevel: 80
+            };
+            
+            uiScene.updateUI(mockGM(), { stakeholder: highPressureStakeholder });
+            
+            expect(uiScene.demandPressureText.setColor).toHaveBeenCalledWith('#ff6666');
+        });
+    });
+
     describe('Incident UI', () => {
         it('should display incident panel when incidents exist', () => {
             const mockIncidents = [
