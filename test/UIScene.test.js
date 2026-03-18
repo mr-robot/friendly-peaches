@@ -82,4 +82,54 @@ describe('UIScene', () => {
             expect(uiScene.revealButton.setVisible).toHaveBeenCalledWith(false);
         });
     });
+
+    describe('Stakeholder Demand Interactions', () => {
+        it('should create stakeholder demand buttons when stakeholder is present', () => {
+            const mockStakeholder = {
+                name: 'CTO',
+                demandCount: 1,
+                demandType: 'infrastructure',
+                fulfillDemand: vi.fn(),
+                ignoreDemand: vi.fn(),
+                pushBack: vi.fn()
+            };
+
+            uiScene.updateUI(mockGM(), { stakeholder: mockStakeholder });
+            
+            // Should show demand panel
+            expect(uiScene.demandPanelBg.setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.demandText.setVisible).toHaveBeenCalledWith(true);
+        });
+
+        it('should hide stakeholder demand panel when no stakeholder', () => {
+            uiScene.updateUI(mockGM(), { stakeholder: null });
+            
+            expect(uiScene.demandPanelBg.setVisible).toHaveBeenCalledWith(false);
+            expect(uiScene.demandText.setVisible).toHaveBeenCalledWith(false);
+        });
+    });
+
+    describe('Incident UI', () => {
+        it('should display incident panel when incidents exist', () => {
+            const mockIncidents = [
+                { severity: 3, timeRemaining: 15000 },
+                { severity: 2, timeRemaining: 30000 }
+            ];
+            
+            uiScene.updateUI(mockGM(), { incidents: mockIncidents });
+            
+            expect(uiScene.incidentPanelBg.setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.incidentLines[0].setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.incidentLines[0].setText).toHaveBeenCalledWith(expect.stringContaining('SEV-1'));
+            expect(uiScene.incidentLines[1].setVisible).toHaveBeenCalledWith(true);
+        });
+
+        it('should hide incident panel when no incidents', () => {
+            uiScene.updateUI(mockGM(), { incidents: [] });
+            
+            expect(uiScene.incidentPanelBg.setVisible).toHaveBeenCalledWith(false);
+            expect(uiScene.incidentPanelTitle.setVisible).toHaveBeenCalledWith(false);
+            uiScene.incidentLines.forEach(l => expect(l.setVisible).toHaveBeenCalledWith(false));
+        });
+    });
 });
