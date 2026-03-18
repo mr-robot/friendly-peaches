@@ -383,10 +383,10 @@ export default class UIScene extends Phaser.Scene {
         } else {
             this.escapeIndicator.setVisible(false);
         }
-        
     }
     
     showSprintReview(result) {
+        console.log('UIScene.showSprintReview called with:', result);
         this.reviewOverlay.setVisible(true);
         this.reviewTitle.setVisible(true);
         this.nextSprintButton.setVisible(true);
@@ -405,6 +405,7 @@ export default class UIScene extends Phaser.Scene {
         );
         this.reviewText.setColor(netColor);
         this.reviewText.setVisible(true);
+        console.log('UIScene.showSprintReview completed - all elements set visible');
     }
     
     hideSprintReview() {
