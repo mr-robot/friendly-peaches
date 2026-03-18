@@ -58,6 +58,7 @@ export default class GameManager {
         // Decrease timer
         this.sprintTime = Math.max(0, this.sprintTime - deltaSec);
         if (this.sprintTime === 0) {
+            console.log('Sprint timer reached zero, transitioning to REVIEW');
             this.state = 'REVIEW';
             return;
         }

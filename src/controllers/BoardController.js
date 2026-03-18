@@ -667,7 +667,7 @@ export default class BoardController {
             ticket.requirement
         );
 
-        bug.currentColumn = 'Backlog';
+        bug.currentColumn = 'Sprint Commitment';
         this.scene.add.existing(bug);
         this.tickets.push(bug);
         
