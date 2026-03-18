@@ -87,6 +87,18 @@ export default class MainGameScene extends Phaser.Scene {
                 this.boardController.handleStateTransition('REVIEW');
                 // Reveal all remaining hidden bugs at sprint end
                 this.boardController.fogOfWar.revealAll();
+                
+                // Remove Done cards
+                this.boardController.tickets = this.boardController.tickets.filter(ticket => {
+                    if (ticket.currentColumn === 'Done') {
+                        if (typeof ticket.destroy === 'function') {
+                            ticket.destroy();
+                        }
+                        return false;
+                    }
+                    return true;
+                });
+                
                 this.evaluateSprint();
                 break;
         }

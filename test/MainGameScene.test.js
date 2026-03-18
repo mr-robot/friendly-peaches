@@ -396,6 +396,37 @@ describe('MainGameScene', () => {
         });
     });
 
+    describe('Done Card Cleanup', () => {
+        it('should remove Done cards when sprint ends', () => {
+            const scene = new MainGameScene();
+            scene.gameManager = { state: 'ACTIVE' };
+            
+            const doneCard1 = { currentColumn: 'Done', destroy: vi.fn() };
+            const inProgressCard = { currentColumn: 'In Progress', destroy: vi.fn() };
+            const doneCard2 = { currentColumn: 'Done', destroy: vi.fn() };
+            
+            scene.boardController = {
+                tickets: [doneCard1, inProgressCard, doneCard2],
+                handleStateTransition: vi.fn(),
+                fogOfWar: { revealAll: vi.fn() }
+            };
+            scene.evaluateSprint = vi.fn();
+            
+            // Trigger sprint end
+            scene.gameManager.state = 'REVIEW';
+            scene.handleStateChange();
+            
+            // Verify Done cards were destroyed
+            expect(doneCard1.destroy).toHaveBeenCalled();
+            expect(doneCard2.destroy).toHaveBeenCalled();
+            expect(inProgressCard.destroy).not.toHaveBeenCalled();
+            
+            // Verify only In Progress card remains
+            expect(scene.boardController.tickets).toHaveLength(1);
+            expect(scene.boardController.tickets[0]).toBe(inProgressCard);
+        });
+    });
+
     describe('Incident Resolution', () => {
         it('should resolve incident when associated bug is completed', () => {
             const bug = { 
