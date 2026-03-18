@@ -199,6 +199,39 @@ export default class UIScene extends Phaser.Scene {
             'Pressure: 0', { fontSize: '11px', color: '#8888ff' }
         ).setVisible(false);
 
+        // Stakeholder interaction buttons
+        const btnY = demandPanelY + 55;
+
+        this.fulfillButton = this.add.rectangle(demandPanelX + 50, btnY, 80, 20, 0x2a5a2a).setOrigin(0.5).setInteractive().setVisible(false);
+        this.fulfillText = this.add.text(demandPanelX + 50, btnY, 'FULFILL', { fontSize: '10px' }).setOrigin(0.5).setVisible(false);
+
+        this.ignoreButton = this.add.rectangle(demandPanelX + 150, btnY, 80, 20, 0x5a2a2a).setOrigin(0.5).setInteractive().setVisible(false);
+        this.ignoreText = this.add.text(demandPanelX + 150, btnY, 'IGNORE', { fontSize: '10px' }).setOrigin(0.5).setVisible(false);
+
+        this.pushBackButton = this.add.rectangle(demandPanelX + 250, btnY, 80, 20, 0x5a5a2a).setOrigin(0.5).setInteractive().setVisible(false);
+        this.pushBackText = this.add.text(demandPanelX + 250, btnY, 'PUSH BACK', { fontSize: '10px' }).setOrigin(0.5).setVisible(false);
+
+        // Event handlers
+        const getStakeholder = () => {
+            const mainScene = this.scene.get('MainGameScene');
+            return mainScene?.stakeholderManager?.getProductOwner();
+        };
+
+        this.fulfillButton.on('pointerdown', () => {
+            const sh = getStakeholder();
+            if (sh && sh.demandCount > 0) sh.fulfillDemand();
+        });
+
+        this.ignoreButton.on('pointerdown', () => {
+            const sh = getStakeholder();
+            if (sh && sh.demandCount > 0) sh.ignoreDemand();
+        });
+
+        this.pushBackButton.on('pointerdown', () => {
+            const sh = getStakeholder();
+            if (sh && sh.demandCount > 0) sh.pushBack();
+        });
+
         // ── Onboarding indicator ────────────────────────────────────────────────
         this.onboardingText = this.add.text(20, this.scale.height - 130, '', {
             fontSize: '12px', color: '#88ffaa', fontStyle: 'italic'
@@ -246,10 +279,33 @@ export default class UIScene extends Phaser.Scene {
             const pressureColor = stakeholder.pressureLevel > 50 ? '#ff6666' : '#8888ff';
             this.demandPressureText.setText(`Pressure: ${stakeholder.pressureLevel}`);
             this.demandPressureText.setColor(pressureColor);
+
+            // Show interaction buttons when there are demands
+            if (stakeholder.demandCount > 0) {
+                this.fulfillButton.setVisible(true);
+                this.fulfillText.setVisible(true);
+                this.ignoreButton.setVisible(true);
+                this.ignoreText.setVisible(true);
+                this.pushBackButton.setVisible(true);
+                this.pushBackText.setVisible(true);
+            } else {
+                this.fulfillButton.setVisible(false);
+                this.fulfillText.setVisible(false);
+                this.ignoreButton.setVisible(false);
+                this.ignoreText.setVisible(false);
+                this.pushBackButton.setVisible(false);
+                this.pushBackText.setVisible(false);
+            }
         } else {
             this.demandPanelBg.setVisible(false);
             this.demandText.setVisible(false);
             this.demandPressureText.setVisible(false);
+            this.fulfillButton.setVisible(false);
+            this.fulfillText.setVisible(false);
+            this.ignoreButton.setVisible(false);
+            this.ignoreText.setVisible(false);
+            this.pushBackButton.setVisible(false);
+            this.pushBackText.setVisible(false);
         }
 
         // ── Onboarding indicator ────────────────────────────────────────────────

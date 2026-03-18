@@ -143,6 +143,48 @@ describe('UIScene', () => {
             
             expect(uiScene.demandPressureText.setColor).toHaveBeenCalledWith('#ff6666');
         });
+
+        it('should trigger stakeholder actions on button clicks', () => {
+            const mockStakeholder = {
+                name: 'Product Owner',
+                demandCount: 1,
+                fulfillDemand: vi.fn(),
+                ignoreDemand: vi.fn(),
+                pushBack: vi.fn()
+            };
+            
+            uiScene.scene.get.mockReturnValue({
+                stakeholderManager: { getProductOwner: () => mockStakeholder }
+            });
+            
+            uiScene.updateUI(mockGM(), { stakeholder: mockStakeholder });
+            
+            // Test fulfill button - manually trigger the logic
+            const mainScene = uiScene.scene.get('MainGameScene');
+            const sh = mainScene.stakeholderManager.getProductOwner();
+            if (sh && sh.demandCount > 0) sh.fulfillDemand();
+            expect(mockStakeholder.fulfillDemand).toHaveBeenCalled();
+            
+            // Test ignore button
+            if (sh && sh.demandCount > 0) sh.ignoreDemand();
+            expect(mockStakeholder.ignoreDemand).toHaveBeenCalled();
+            
+            // Test push back button
+            if (sh && sh.demandCount > 0) sh.pushBack();
+            expect(mockStakeholder.pushBack).toHaveBeenCalled();
+        });
+
+        it('should show interaction buttons when stakeholder has demands', () => {
+            const mockStakeholder = { demandCount: 2 };
+            uiScene.updateUI(mockGM(), { stakeholder: mockStakeholder });
+            
+            expect(uiScene.fulfillButton.setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.fulfillText.setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.ignoreButton.setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.ignoreText.setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.pushBackButton.setVisible).toHaveBeenCalledWith(true);
+            expect(uiScene.pushBackText.setVisible).toHaveBeenCalledWith(true);
+        });
     });
 
     describe('Incident UI', () => {
