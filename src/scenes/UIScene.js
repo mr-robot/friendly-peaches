@@ -212,24 +212,32 @@ export default class UIScene extends Phaser.Scene {
         this.pushBackText = this.add.text(demandPanelX + 250, btnY, 'PUSH BACK', { fontSize: '10px' }).setOrigin(0.5).setVisible(false);
 
         // Event handlers
-        const getStakeholder = () => {
+        const getStakeholderManager = () => {
             const mainScene = this.scene.get('MainGameScene');
-            return mainScene?.stakeholderManager?.getProductOwner();
+            return mainScene?.stakeholderManager;
+        };
+
+        const getStakeholder = () => {
+            const sm = getStakeholderManager();
+            return sm?.getProductOwner();
         };
 
         this.fulfillButton.on('pointerdown', () => {
+            const sm = getStakeholderManager();
             const sh = getStakeholder();
-            if (sh && sh.demandCount > 0) sh.fulfillDemand();
+            if (sm && sh && sh.demandCount > 0) sm.fulfillDemand(sh);
         });
 
         this.ignoreButton.on('pointerdown', () => {
+            const sm = getStakeholderManager();
             const sh = getStakeholder();
-            if (sh && sh.demandCount > 0) sh.ignoreDemand();
+            if (sm && sh && sh.demandCount > 0) sm.ignoreDemand(sh);
         });
 
         this.pushBackButton.on('pointerdown', () => {
+            const sm = getStakeholderManager();
             const sh = getStakeholder();
-            if (sh && sh.demandCount > 0) sh.pushBack();
+            if (sm && sh && sh.demandCount > 0) sm.pushBack(sh);
         });
 
         // ── Onboarding indicator ────────────────────────────────────────────────

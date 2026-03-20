@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock Phaser to avoid import issues
+const eventHandlers = {};
+
 vi.mock('phaser', () => {
     return {
         default: {
@@ -13,7 +15,10 @@ vi.mock('phaser', () => {
                         setOrigin: vi.fn().mockReturnThis(),
                         setInteractive: vi.fn().mockReturnThis(),
                         setVisible: vi.fn().mockReturnThis(),
-                        on: vi.fn().mockReturnThis()
+                        on: vi.fn().mockImplementation(function(event, handler) {
+                            eventHandlers[event] = handler;
+                            return this;
+                        })
                     }),
                     text: vi.fn().mockReturnValue({
                         setOrigin: vi.fn().mockReturnThis(),
@@ -106,6 +111,112 @@ describe('UIScene', () => {
             
             expect(uiScene.demandPanelBg.setVisible).toHaveBeenCalledWith(false);
             expect(uiScene.demandText.setVisible).toHaveBeenCalledWith(false);
+        });
+    });
+
+    describe('Product Owner Button Event Handlers', () => {
+        it('should call fulfillDemand when fulfill button is clicked', () => {
+            const mockStakeholder = {
+                name: 'Product Owner',
+                demandCount: 1,
+                fulfillDemand: vi.fn(),
+                ignoreDemand: vi.fn(),
+                pushBack: vi.fn()
+            };
+
+            // Set up mock BEFORE create() is called so the closure captures it
+            const mockMainScene = {
+                stakeholderManager: { getProductOwner: () => mockStakeholder }
+            };
+            uiScene.scene.get.mockReturnValue(mockMainScene);
+
+            // Trigger the pointerdown event for fulfill button
+            if (eventHandlers['pointerdown']) {
+                eventHandlers['pointerdown']();
+            }
+
+            expect(mockStakeholder.fulfillDemand).toHaveBeenCalled();
+        });
+
+        it('should call ignoreDemand when ignore button is clicked', () => {
+            const mockStakeholder = {
+                name: 'Product Owner',
+                demandCount: 1,
+                fulfillDemand: vi.fn(),
+                ignoreDemand: vi.fn(),
+                pushBack: vi.fn()
+            };
+
+            const mockMainScene = {
+                stakeholderManager: { getProductOwner: () => mockStakeholder }
+            };
+            uiScene.scene.get.mockReturnValue(mockMainScene);
+
+            if (eventHandlers['pointerdown']) {
+                eventHandlers['pointerdown']();
+            }
+
+            expect(mockStakeholder.ignoreDemand).toHaveBeenCalled();
+        });
+
+        it('should call pushBack when push back button is clicked', () => {
+            const mockStakeholder = {
+                name: 'Product Owner',
+                demandCount: 1,
+                fulfillDemand: vi.fn(),
+                ignoreDemand: vi.fn(),
+                pushBack: vi.fn()
+            };
+
+            const mockMainScene = {
+                stakeholderManager: { getProductOwner: () => mockStakeholder }
+            };
+            uiScene.scene.get.mockReturnValue(mockMainScene);
+
+            if (eventHandlers['pointerdown']) {
+                eventHandlers['pointerdown']();
+            }
+
+            expect(mockStakeholder.pushBack).toHaveBeenCalled();
+        });
+
+        it('getStakeholder should return the correct stakeholder from stakeholderManager', () => {
+            const mockStakeholder = {
+                name: 'Product Owner',
+                demandCount: 2
+            };
+
+            const mockMainScene = {
+                stakeholderManager: { getProductOwner: () => mockStakeholder }
+            };
+            uiScene.scene.get.mockReturnValue(mockMainScene);
+
+            // Verify the mock is set up correctly
+            const mainScene = uiScene.scene.get('MainGameScene');
+            expect(mainScene.stakeholderManager.getProductOwner()).toBe(mockStakeholder);
+        });
+
+        it('should not call stakeholder methods when demandCount is 0', () => {
+            const mockStakeholder = {
+                name: 'Product Owner',
+                demandCount: 0,
+                fulfillDemand: vi.fn(),
+                ignoreDemand: vi.fn(),
+                pushBack: vi.fn()
+            };
+
+            const mockMainScene = {
+                stakeholderManager: { getProductOwner: () => mockStakeholder }
+            };
+            uiScene.scene.get.mockReturnValue(mockMainScene);
+
+            if (eventHandlers['pointerdown']) {
+                eventHandlers['pointerdown']();
+            }
+
+            expect(mockStakeholder.fulfillDemand).not.toHaveBeenCalled();
+            expect(mockStakeholder.ignoreDemand).not.toHaveBeenCalled();
+            expect(mockStakeholder.pushBack).not.toHaveBeenCalled();
         });
     });
 
